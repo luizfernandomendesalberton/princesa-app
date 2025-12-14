@@ -1,4 +1,5 @@
 import os
+import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
@@ -6,17 +7,32 @@ import psycopg2.extras
 from datetime import datetime, timedelta
 from functools import wraps
 
+# Variável global para tipo de banco
+USING_SQLITE = False
+
 # Função helper para converter resultados do cursor em dicionários
 def cursor_to_dict(cursor, row):
-    """Converte uma linha do cursor PostgreSQL em dicionário"""
+    """Converte uma linha do cursor em dicionário (PostgreSQL ou SQLite)"""
     if row is None:
         return None
+    
+    # SQLite com row_factory já retorna dict-like
+    if hasattr(row, 'keys'):
+        return dict(row)
+    
+    # PostgreSQL - converter manualmente
     return dict(zip([desc[0] for desc in cursor.description], row))
 
 def cursor_to_dict_list(cursor, rows):
-    """Converte múltiplas linhas do cursor PostgreSQL em lista de dicionários"""
+    """Converte múltiplas linhas do cursor em lista de dicionários"""
     if not rows:
         return []
+    
+    # Se já é SQLite Row objects
+    if rows and hasattr(rows[0], 'keys'):
+        return [dict(row) for row in rows]
+    
+    # PostgreSQL - converter manualmente
     columns = [desc[0] for desc in cursor.description]
     return [dict(zip(columns, row)) for row in rows]
 
@@ -42,9 +58,22 @@ def format_time(time_value):
         return str(time_value)
 
 def get_db_connection():
-    """Cria conexão com o banco de dados com múltiplas estratégias"""
+    """Cria conexão com o banco de dados com múltiplas estratégias incluindo SQLite fallback"""
     
-    # Estratégia 1: Usar variáveis de ambiente individuais (Render externo)
+    # Debug completo da DATABASE_URL
+    if os.environ.get('DATABASE_URL'):
+        db_url = os.environ['DATABASE_URL']
+        print(f"🔍 DATABASE_URL completa: {db_url}")
+        print(f"🔍 Tipo: {type(db_url)}, Tamanho: {len(db_url)}")
+        
+        # Verificar se é uma URL válida ou placeholder
+        if 'External Database URL' in db_url or len(db_url) < 20:
+            print("🚨 DATABASE_URL é um placeholder - usando SQLite")
+        else:
+            # Tentar conexão PostgreSQL
+            return try_postgresql_connection(db_url)
+    
+    # Estratégia 1: Variáveis PG individuais
     if all(os.environ.get(var) for var in ['PGHOST', 'PGDATABASE', 'PGUSER', 'PGPASSWORD']):
         try:
             connection = psycopg2.connect(
@@ -60,55 +89,51 @@ def get_db_connection():
         except Exception as e:
             print(f"❌ Falha nas variáveis PG: {e}")
     
-    # Estratégia 2: DATABASE_URL com parsing melhorado
-    if os.environ.get('DATABASE_URL'):
-        try:
-            database_url = os.environ['DATABASE_URL'].strip()
-            print(f"🔍 DATABASE_URL: {database_url[:50]}...")
-            
-            # Fix postgres:// → postgresql://
-            if database_url.startswith('postgres://'):
-                database_url = database_url.replace('postgres://', 'postgresql://', 1)
-            
-            # Tentar diferentes métodos de conexão
-            connection_methods = [
-                # Método 1: URL direta
-                lambda: psycopg2.connect(database_url),
+    # Fallback para SQLite (funciona sempre)
+    print("🖾 Usando SQLite como fallback")
+    return get_sqlite_connection()
+
+def try_postgresql_connection(database_url):
+    """Tenta conexão PostgreSQL com diferentes métodos"""
+    try:
+        # Fix postgres:// → postgresql://
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        
+        # Tentar diferentes métodos de conexão
+        connection_methods = [
+            lambda: psycopg2.connect(database_url),
+            lambda: psycopg2.connect(**parse_database_url(database_url)),
+            lambda: psycopg2.connect(database_url.replace('?sslmode=require', '')),
+        ]
+        
+        for i, method in enumerate(connection_methods, 1):
+            try:
+                connection = method()
+                print(f"✅ PostgreSQL conectado via método {i}")
+                return connection
+            except Exception as e:
+                print(f"❌ Método PostgreSQL {i} falhou: {e}")
                 
-                # Método 2: Parsing manual
-                lambda: psycopg2.connect(**parse_database_url(database_url)),
-                
-                # Método 3: URL sem SSL obrigatório
-                lambda: psycopg2.connect(database_url.replace('?sslmode=require', '')),
-            ]
-            
-            for i, method in enumerate(connection_methods, 1):
-                try:
-                    connection = method()
-                    print(f"✅ Conectado via método {i}")
-                    return connection
-                except Exception as e:
-                    print(f"❌ Método {i} falhou: {e}")
-            
-        except Exception as e:
-            print(f"❌ Erro geral na DATABASE_URL: {e}")
+    except Exception as e:
+        print(f"❌ Erro geral PostgreSQL: {e}")
     
-    # Estratégia 3: Desenvolvimento local
-    if not os.environ.get('DATABASE_URL'):
-        try:
-            connection = psycopg2.connect(
-                host='localhost',
-                database='princesa_db', 
-                user='postgres',
-                password='sua_senha_local'
-            )
-            print("✅ Conectado localmente")
-            return connection
-        except Exception as e:
-            print(f"❌ Falha conexão local: {e}")
-    
-    print("❌ Todas as estratégias de conexão falharam!")
-    return None
+    # Se PostgreSQL falhou, usar SQLite
+    print("🖾 PostgreSQL falhou - usando SQLite")
+    return get_sqlite_connection()
+
+def get_sqlite_connection():
+    """Cria conexão SQLite como fallback"""
+    try:
+        # Criar diretório para o banco se não existir
+        db_path = 'princesa.db'
+        connection = sqlite3.connect(db_path)
+        connection.row_factory = sqlite3.Row  # Para acessar colunas por nome
+        print(f"✅ SQLite conectado: {db_path}")
+        return connection
+    except Exception as e:
+        print(f"❌ Erro no SQLite: {e}")
+        return None
 
 def parse_database_url(url):
     """Parse manual da DATABASE_URL"""
@@ -124,10 +149,100 @@ def parse_database_url(url):
         'sslmode': 'require'
     }
 
+def init_sqlite_db(connection):
+    """Inicializa banco SQLite com tabelas adaptadas"""
+    try:
+        cursor = connection.cursor()
+        
+        # Tabelas SQLite
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                title TEXT NOT NULL,
+                description TEXT,
+                completed BOOLEAN DEFAULT 0,
+                priority TEXT DEFAULT 'media',
+                due_date DATE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS routines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                title TEXT NOT NULL,
+                description TEXT,
+                time_schedule TEXT,
+                days_of_week TEXT,
+                active BOOLEAN DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS routine_executions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                routine_id INTEGER,
+                executed_date DATE,
+                executed_time TEXT,
+                notes TEXT,
+                FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE CASCADE
+            )
+        """)
+        
+        # Criar usuários padrão
+        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
+        if cursor.fetchone()[0] == 0:
+            admin_password = generate_password_hash('admin2025')
+            cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
+                         ('admin', admin_password, 'Administrador'))
+            print("👑 Admin SQLite criado")
+        
+        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'ana_paula'")
+        if cursor.fetchone()[0] == 0:
+            user_password = generate_password_hash('princesa123')
+            cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
+                         ('ana_paula', user_password, 'Ana Paula Schlickmann Michels'))
+            print("✅ Ana Paula SQLite criada")
+        
+        connection.commit()
+        cursor.close()
+        connection.close()
+        print("✅ SQLite inicializado com sucesso!")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Erro SQLite: {e}")
+        return False
+
 def init_db():
     """Inicializa o banco de dados com as tabelas necessárias"""
     connection = get_db_connection()
     if connection:
+        # Detectar se é SQLite
+        global USING_SQLITE
+        USING_SQLITE = hasattr(connection, 'row_factory')
+        
+        if USING_SQLITE:
+            print("🗄️ Inicializando SQLite")
+            return init_sqlite_db(connection)
+        else:
+            print("🗄️ Inicializando PostgreSQL")
         cursor = connection.cursor()
         
         # Tabela de usuários (PostgreSQL syntax)
