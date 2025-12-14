@@ -66,10 +66,11 @@ def get_db_connection():
         
         return connection
     except psycopg2.Error as err:
-        print(f"Erro ao conectar com o banco: {err}")
+        print(f"❌ Erro PostgreSQL: {err}")
+        print(f"DATABASE_URL presente: {bool(os.environ.get('DATABASE_URL'))}")
         return None
     except Exception as e:
-        print(f"Erro geral na conexão: {e}")
+        print(f"❌ Erro geral na conexão: {e}")
         return None
 
 def init_db():
@@ -152,26 +153,32 @@ def init_db():
         admin_exists = cursor.fetchone()[0] > 0
         
         if not admin_exists:
-            admin_password = generate_password_hash('admin123')
+            admin_password = generate_password_hash('admin2025')
             cursor.execute("""
                 INSERT INTO users (username, password_hash, name) 
                 VALUES ('admin', %s, 'Administrador')
             """, (admin_password,))
         
-        # Criar usuário padrão apenas se não existir
+        # Verificar e recriar usuário ana_paula se necessário
         cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'ana_paula'")
         user_exists = cursor.fetchone()[0] > 0
         
-        if not user_exists:
-            hashed_password = generate_password_hash('princesa123')
-            cursor.execute("""
-                INSERT INTO users (username, password_hash, name) 
-                VALUES ('ana_paula', %s, 'Ana Paula Schlickmann Michels')
-                RETURNING id
-            """, (hashed_password,))
-            
-            # Inserir dados de exemplo apenas para usuário novo
-            user_id = cursor.fetchone()[0]
+        if user_exists:
+            # Deletar usuário existente para recriar com senha correta
+            cursor.execute("DELETE FROM users WHERE username = 'ana_paula'")
+            print("🔄 Usuário ana_paula removido para recriação")
+        
+        # Criar usuário ana_paula
+        hashed_password = generate_password_hash('princesa123')
+        cursor.execute("""
+            INSERT INTO users (username, password_hash, name) 
+            VALUES ('ana_paula', %s, 'Ana Paula Schlickmann Michels')
+            RETURNING id
+        """, (hashed_password,))
+        
+        # Inserir dados de exemplo apenas para usuário novo
+        user_id = cursor.fetchone()[0]
+        print(f"✅ Usuário ana_paula criado com ID: {user_id}")
             
             # Tarefas de exemplo
             tasks_example = [
@@ -249,6 +256,49 @@ def index():
         print(f"Erro na rota index: {e}")
         return f"Erro interno: {str(e)}", 500
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        name = request.form['name']
+        
+        if not username or not password or not name:
+            flash('Todos os campos são obrigatórios!', 'error')
+            return render_template('register.html')
+        
+        connection = get_db_connection()
+        if connection:
+            try:
+                cursor = connection.cursor()
+                # Verificar se usuário já existe
+                cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+                if cursor.fetchone():
+                    flash('Nome de usuário já existe!', 'error')
+                    return render_template('register.html')
+                
+                # Criar novo usuário
+                hashed_password = generate_password_hash(password)
+                cursor.execute("""
+                    INSERT INTO users (username, password_hash, name)
+                    VALUES (%s, %s, %s)
+                """, (username, hashed_password, name))
+                connection.commit()
+                cursor.close()
+                connection.close()
+                
+                flash('Usuário cadastrado com sucesso! Faça login agora.', 'success')
+                return redirect(url_for('login'))
+                
+            except Exception as e:
+                flash(f'Erro ao cadastrar usuário: {str(e)}', 'error')
+                return render_template('register.html')
+        else:
+            flash('Erro de conexão com o banco de dados!', 'error')
+            return render_template('register.html')
+    
+    return render_template('register.html')
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -260,6 +310,9 @@ def login():
             cursor = connection.cursor()
             cursor.execute("SELECT id, username, name, password_hash FROM users WHERE username = %s", (username,))
             user_row = cursor.fetchone()
+            
+            print(f"🔍 Login attempt - User: {username}")
+            print(f"🔍 User found in DB: {bool(user_row)}")
             
             if user_row and check_password_hash(user_row[3], password):
                 user = {
@@ -274,12 +327,15 @@ def login():
                 flash('Login realizado com sucesso! Bem-vinda, Princesa! 👑', 'success')
                 return redirect(url_for('dashboard'))
             else:
-                flash('Usuário ou senha incorretos! 😔', 'error')
-            
+                if user_row:
+                    flash('Senha incorreta! Tente: princesa123 🚫', 'error')
+                else:
+                    flash(f'Usuário "{username}" não encontrado! Use o botão de cadastro. 🚫', 'error')
+                
             cursor.close()
             connection.close()
         else:
-            flash('Erro de conexão com o banco de dados!', 'error')
+            flash('Erro de conexão com o banco de dados! Verifique os logs.', 'error')
     
     return render_template('login.html')
 
