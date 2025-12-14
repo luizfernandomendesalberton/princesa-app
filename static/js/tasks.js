@@ -4,15 +4,23 @@
  */
 
 function toggleTask(taskId) {
-    fetch(`/tasks/toggle/${taskId}`, {
-        method: 'POST',
+    fetch(`/toggle_task/${taskId}`, {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json',
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (response.headers.get('content-type')?.includes('application/json')) {
+            return response.json();
+        } else {
+            // Se não for JSON, recarregar a página
+            location.reload();
+            return null;
+        }
+    })
     .then(data => {
-        if (data.success) {
+        if (data && data.success) {
             const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
             const checkbox = document.querySelector(`#task-${taskId}`);
             
@@ -35,8 +43,8 @@ function toggleTask(taskId) {
 
 function deleteTask(taskId) {
     if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
-        fetch(`/tasks/delete/${taskId}`, {
-            method: 'POST'
+        fetch(`/delete_task/${taskId}`, {
+            method: 'GET'
         })
         .then(() => {
             location.reload();

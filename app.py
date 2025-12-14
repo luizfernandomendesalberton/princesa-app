@@ -734,6 +734,8 @@ def add_task():
 @login_required
 def toggle_task(task_id):
     connection = get_db_connection()
+    success = False
+    
     if connection:
         cursor = connection.cursor()
         placeholder = get_param_placeholder()
@@ -745,7 +747,12 @@ def toggle_task(task_id):
         connection.commit()
         cursor.close()
         connection.close()
-        flash('Status da tarefa atualizado! 👑', 'success')
+        success = True
+        flash('Status da tarefa atualizada! 👑', 'success')
+    
+    # Se for uma requisição AJAX, retornar JSON
+    if request.headers.get('Content-Type') == 'application/json':
+        return jsonify({'success': success})
     
     return redirect(url_for('tasks'))
 
@@ -817,6 +824,8 @@ def add_routine():
 @login_required
 def toggle_routine(routine_id):
     connection = get_db_connection()
+    success = False
+    
     if connection:
         cursor = connection.cursor()
         placeholder = get_param_placeholder()
@@ -828,7 +837,12 @@ def toggle_routine(routine_id):
         connection.commit()
         cursor.close()
         connection.close()
-        flash('Status da rotina atualizado! ⚡', 'success')
+        success = True
+        flash('Status da rotina atualizada! ⚡', 'success')
+    
+    # Se for uma requisição AJAX, retornar JSON
+    if request.headers.get('Content-Type') == 'application/json':
+        return jsonify({'success': success})
     
     return redirect(url_for('routines'))
 

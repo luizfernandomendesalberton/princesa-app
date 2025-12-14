@@ -4,15 +4,23 @@
  */
 
 function toggleRoutine(routineId) {
-    fetch(`/routines/toggle/${routineId}`, {
-        method: 'POST',
+    fetch(`/toggle_routine/${routineId}`, {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json',
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (response.headers.get('content-type')?.includes('application/json')) {
+            return response.json();
+        } else {
+            // Se não for JSON, recarregar a página
+            location.reload();
+            return null;
+        }
+    })
     .then(data => {
-        if (data.success) {
+        if (data && data.success) {
             const routineCard = document.querySelector(`[data-routine-id="${routineId}"]`);
             const toggle = routineCard.querySelector('input[type="checkbox"]');
             
@@ -56,8 +64,15 @@ function editRoutine(routineId) {
 
 function deleteRoutine(routineId) {
     if (confirm('Tem certeza que deseja excluir esta rotina?')) {
-        // Implementar exclusão
-        alert('Funcionalidade de exclusão será implementada em breve!');
+        fetch(`/delete_routine/${routineId}`, {
+            method: 'GET'
+        })
+        .then(() => {
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+        });
     }
 }
 
