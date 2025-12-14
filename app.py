@@ -849,13 +849,17 @@ def admin_change_password():
     if connection:
         cursor = connection.cursor()
         hashed_password = generate_password_hash(new_password)
-        cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hashed_password, user_id))
+        
+        placeholder = get_param_placeholder()
+        cursor.execute(f"UPDATE users SET password_hash = {placeholder} WHERE id = {placeholder}", 
+                      (hashed_password, user_id))
+        
         connection.commit()
         cursor.close()
         connection.close()
-        flash('Senha alterada com sucesso!', 'success')
+        flash('Senha alterada com sucesso! ✅', 'success')
     else:
-        flash('Erro ao conectar com o banco de dados!', 'error')
+        flash('Erro ao conectar com o banco de dados! ❌', 'error')
     
     return redirect(url_for('admin_dashboard'))
 
