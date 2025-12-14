@@ -12,7 +12,12 @@ USING_SQLITE = False
 
 def get_param_placeholder():
     """Retorna o placeholder correto para parâmetros SQL"""
-    return "?" if USING_SQLITE else "%s"
+    # Detectar tipo de conexão via DATABASE_URL ou variáveis de ambiente
+    db_url = os.environ.get('DATABASE_URL', '')
+    is_sqlite = ('External Database URL' in db_url or 
+                 len(db_url) < 20 or 
+                 not os.environ.get('PGHOST'))
+    return "?" if is_sqlite else "%s"
 
 # Função helper para converter resultados do cursor em dicionários
 def cursor_to_dict(cursor, row):
@@ -45,57 +50,39 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 # Configuração para produção
 app.secret_key = os.environ.get('SECRET_KEY', 'princesa_ana_paula_2025_secret_key_muito_segura')
 
-# Middleware para garantir que o banco esteja sempre inicializado
+# Middleware simplificado para garantir que o banco esteja sempre inicializado
 @app.before_request
 def ensure_database():
-    """Garante que o banco esteja inicializado antes de cada requisição"""
+    """Garante que o banco esteja inicializado - executa apenas uma vez por instância"""
     if not hasattr(app, 'db_initialized'):
         try:
-            print("🔄 Verificando inicialização do banco...")
-            connection = get_db_connection()
-            if connection:
-                cursor = connection.cursor()
-                # Testar se as tabelas existem
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
-                if not cursor.fetchone():
-                    print("📋 Tabelas não encontradas, reinicializando...")
+            print("🔄 Verificando inicialização do banco (primeira vez)...")
+            # Detectar tipo de banco
+            global USING_SQLITE
+            db_url = os.environ.get('DATABASE_URL', '')
+            USING_SQLITE = ('External Database URL' in db_url or len(db_url) < 20)
+            
+            if USING_SQLITE:
+                # Para SQLite, sempre reinicializar no Render para garantir dados
+                init_db()
+                print("✅ SQLite reinicializado!")
+            else:
+                # PostgreSQL - verificar se precisa inicializar
+                connection = get_db_connection()
+                if connection:
+                    cursor = connection.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'users'")
+                    if cursor.fetchone()[0] == 0:
+                        init_db()
+                        print("✅ PostgreSQL inicializado!")
                     cursor.close()
                     connection.close()
-                    init_db()
-                else:
-                    # Verificar se usuários padrão existem
-                    cursor.execute("SELECT COUNT(*) FROM users WHERE username IN ('admin', 'ana_paula')")
-                    user_count = cursor.fetchone()[0]
-                    if user_count < 2:
-                        print("👥 Usuários padrão não encontrados, recriando...")
-                        # Recriar usuários padrão
-                        cursor.execute("DELETE FROM users WHERE username IN ('admin', 'ana_paula')")
-                        
-                        admin_password = generate_password_hash('admin2025')
-                        cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
-                                     ('admin', admin_password, 'Administrador'))
-                        
-                        user_password = generate_password_hash('princesa123')
-                        cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
-                                     ('ana_paula', user_password, 'Ana Paula Schlickmann Michels'))
-                        
-                        connection.commit()
-                        print("✅ Usuários padrão recriados!")
-                    
-                cursor.close()
-                connection.close()
             
             app.db_initialized = True
-            print("✅ Banco verificado e inicializado!")
+            print("✅ Banco verificado e pronto!")
         except Exception as e:
-            print(f"❌ Erro na verificação do banco: {e}")
-            # Tentar inicialização completa
-            try:
-                init_db()
-                app.db_initialized = True
-                print("🔄 Banco reinicializado com sucesso!")
-            except Exception as init_error:
-                print(f"❌ Erro crítico na inicialização: {init_error}")
+            print(f"❌ Erro na inicialização do banco: {e}")
+            app.db_initialized = True  # Evitar loop infinito
 
 # Filtro customizado para formatar timedelta
 @app.template_filter('format_time')
@@ -663,7 +650,7 @@ def dashboard():
     
     return render_template('dashboard.html', 
                          tasks=tasks_pending, 
-                         routines=routines_today,
+                         routines=today_routines,
                          user_name=session.get('name', ''))
 
 @app.route('/tasks')
@@ -701,16 +688,13 @@ def add_task():
     connection = get_db_connection()
     if connection:
         cursor = connection.cursor()
-        if USING_SQLITE:
-            cursor.execute("""
-                INSERT INTO tasks (user_id, title, description, priority, due_date)
-                VALUES (?, ?, ?, ?, ?)
-            """, (session['user_id'], title, description, priority, due_date))
-        else:
-            cursor.execute("""
-                INSERT INTO tasks (user_id, title, description, priority, due_date)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (session['user_id'], title, description, priority, due_date))
+        placeholder = get_param_placeholder()
+        print(f"🔍 Adicionando tarefa: {title} para usuário {session['user_id']}")
+        cursor.execute(f"""
+            INSERT INTO tasks (user_id, title, description, priority, due_date)
+            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+        """, (session['user_id'], title, description, priority, due_date))
+        print(f"✅ Tarefa adicionada com sucesso!")
         connection.commit()
         cursor.close()
         connection.close()
@@ -724,9 +708,11 @@ def toggle_task(task_id):
     connection = get_db_connection()
     if connection:
         cursor = connection.cursor()
-        cursor.execute("""
+        placeholder = get_param_placeholder()
+        print(f"🔄 Alternando status da tarefa {task_id}")
+        cursor.execute(f"""
             UPDATE tasks SET completed = NOT completed 
-            WHERE id = %s AND user_id = %s
+            WHERE id = {placeholder} AND user_id = {placeholder}
         """, (task_id, session['user_id']))
         connection.commit()
         cursor.close()
@@ -785,10 +771,13 @@ def add_routine():
     connection = get_db_connection()
     if connection:
         cursor = connection.cursor()
-        cursor.execute("""
+        placeholder = get_param_placeholder()
+        print(f"🔍 Adicionando rotina: {title} para usuário {session['user_id']}")
+        cursor.execute(f"""
             INSERT INTO routines (user_id, title, description, time_schedule, days_of_week)
-            VALUES (%s, %s, %s, %s, %s)
+            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
         """, (session['user_id'], title, description, time_schedule or None, days_of_week))
+        print(f"✅ Rotina adicionada com sucesso!")
         connection.commit()
         cursor.close()
         connection.close()
@@ -802,9 +791,11 @@ def toggle_routine(routine_id):
     connection = get_db_connection()
     if connection:
         cursor = connection.cursor()
-        cursor.execute("""
+        placeholder = get_param_placeholder()
+        print(f"🔄 Alternando status da rotina {routine_id}")
+        cursor.execute(f"""
             UPDATE routines SET active = NOT active 
-            WHERE id = %s AND user_id = %s
+            WHERE id = {placeholder} AND user_id = {placeholder}
         """, (routine_id, session['user_id']))
         connection.commit()
         cursor.close()
@@ -819,7 +810,9 @@ def delete_routine(routine_id):
     connection = get_db_connection()
     if connection:
         cursor = connection.cursor()
-        cursor.execute("DELETE FROM routines WHERE id = %s AND user_id = %s", (routine_id, session['user_id']))
+        placeholder = get_param_placeholder()
+        print(f"🗑️ Deletando rotina {routine_id}")
+        cursor.execute(f"DELETE FROM routines WHERE id = {placeholder} AND user_id = {placeholder}", (routine_id, session['user_id']))
         connection.commit()
         cursor.close()
         connection.close()
