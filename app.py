@@ -42,57 +42,87 @@ def format_time(time_value):
         return str(time_value)
 
 def get_db_connection():
-    """Cria conexão com o banco de dados"""
-    try:
-        if os.environ.get('DATABASE_URL'):
-            # Produção (PostgreSQL no Render)
+    """Cria conexão com o banco de dados com múltiplas estratégias"""
+    
+    # Estratégia 1: Usar variáveis de ambiente individuais (Render externo)
+    if all(os.environ.get(var) for var in ['PGHOST', 'PGDATABASE', 'PGUSER', 'PGPASSWORD']):
+        try:
+            connection = psycopg2.connect(
+                host=os.environ['PGHOST'],
+                port=os.environ.get('PGPORT', 5432),
+                database=os.environ['PGDATABASE'], 
+                user=os.environ['PGUSER'],
+                password=os.environ['PGPASSWORD'],
+                sslmode='require'
+            )
+            print("✅ Conectado via variáveis PG individuais")
+            return connection
+        except Exception as e:
+            print(f"❌ Falha nas variáveis PG: {e}")
+    
+    # Estratégia 2: DATABASE_URL com parsing melhorado
+    if os.environ.get('DATABASE_URL'):
+        try:
             database_url = os.environ['DATABASE_URL'].strip()
-            print(f"🔍 DATABASE_URL original: {database_url[:50]}...")
+            print(f"🔍 DATABASE_URL: {database_url[:50]}...")
             
-            # Fix para URLs do Render que podem usar postgres:// ao invés de postgresql://
+            # Fix postgres:// → postgresql://
             if database_url.startswith('postgres://'):
                 database_url = database_url.replace('postgres://', 'postgresql://', 1)
-                print(f"🔄 URL corrigida para postgresql://")
             
-            # Método alternativo: parse manual da URL
-            try:
-                from urllib.parse import urlparse
-                parsed = urlparse(database_url)
+            # Tentar diferentes métodos de conexão
+            connection_methods = [
+                # Método 1: URL direta
+                lambda: psycopg2.connect(database_url),
                 
-                connection = psycopg2.connect(
-                    host=parsed.hostname,
-                    port=parsed.port or 5432,
-                    database=parsed.path[1:] if parsed.path.startswith('/') else parsed.path,
-                    user=parsed.username,
-                    password=parsed.password,
-                    sslmode='require'
-                )
-                print(f"✅ Conectado via parsing manual da URL")
-            except Exception as parse_error:
-                print(f"❌ Erro no parsing manual: {parse_error}")
-                # Fallback: conectar diretamente com a URL
-                connection = psycopg2.connect(database_url)
-                print(f"✅ Conectado via URL direta")
+                # Método 2: Parsing manual
+                lambda: psycopg2.connect(**parse_database_url(database_url)),
+                
+                # Método 3: URL sem SSL obrigatório
+                lambda: psycopg2.connect(database_url.replace('?sslmode=require', '')),
+            ]
             
-        else:
-            # Desenvolvimento local (PostgreSQL local)
+            for i, method in enumerate(connection_methods, 1):
+                try:
+                    connection = method()
+                    print(f"✅ Conectado via método {i}")
+                    return connection
+                except Exception as e:
+                    print(f"❌ Método {i} falhou: {e}")
+            
+        except Exception as e:
+            print(f"❌ Erro geral na DATABASE_URL: {e}")
+    
+    # Estratégia 3: Desenvolvimento local
+    if not os.environ.get('DATABASE_URL'):
+        try:
             connection = psycopg2.connect(
                 host='localhost',
-                database='princesa_db',
-                user='postgres', 
+                database='princesa_db', 
+                user='postgres',
                 password='sua_senha_local'
             )
-        
-        return connection
-    except psycopg2.Error as err:
-        print(f"❌ Erro PostgreSQL: {err}")
-        if os.environ.get('DATABASE_URL'):
-            url_sample = os.environ['DATABASE_URL'][:30] + "..." if len(os.environ['DATABASE_URL']) > 30 else os.environ['DATABASE_URL']
-            print(f"🔍 DATABASE_URL sample: {url_sample}")
-        return None
-    except Exception as e:
-        print(f"❌ Erro geral na conexão: {e}")
-        return None
+            print("✅ Conectado localmente")
+            return connection
+        except Exception as e:
+            print(f"❌ Falha conexão local: {e}")
+    
+    print("❌ Todas as estratégias de conexão falharam!")
+    return None
+
+def parse_database_url(url):
+    """Parse manual da DATABASE_URL"""
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    
+    return {
+        'host': parsed.hostname,
+        'port': parsed.port or 5432,
+        'database': parsed.path[1:] if parsed.path.startswith('/') else parsed.path,
+        'user': parsed.username,
+        'password': parsed.password,
+        'sslmode': 'require'
+    }
 
 def init_db():
     """Inicializa o banco de dados com as tabelas necessárias"""
@@ -252,42 +282,58 @@ def login_required(f):
 # Rotas da aplicação
 @app.route('/health')
 def health_check():
-    """Rota para verificar saúde da aplicação"""
+    """Rota para verificar saúde da aplicação com diagnóstico completo"""
     try:
-        # Informações do ambiente
+        # Informações detalhadas do ambiente
         env_info = {
-            'database_url_present': bool(os.environ.get('DATABASE_URL')),
-            'database_url_length': len(os.environ.get('DATABASE_URL', '')),
-            'database_url_start': os.environ.get('DATABASE_URL', '')[:20] + "..." if os.environ.get('DATABASE_URL') else 'N/A'
+            'DATABASE_URL': bool(os.environ.get('DATABASE_URL')),
+            'DATABASE_URL_sample': os.environ.get('DATABASE_URL', '')[:30] + "..." if os.environ.get('DATABASE_URL') else 'N/A',
+            'PGHOST': os.environ.get('PGHOST', 'N/A'),
+            'PGDATABASE': os.environ.get('PGDATABASE', 'N/A'), 
+            'PGUSER': os.environ.get('PGUSER', 'N/A'),
+            'PGPASSWORD': bool(os.environ.get('PGPASSWORD')),
+            'PGPORT': os.environ.get('PGPORT', 'N/A'),
+            'all_pg_vars': all(os.environ.get(var) for var in ['PGHOST', 'PGDATABASE', 'PGUSER', 'PGPASSWORD'])
         }
         
         # Testar conexão com banco
+        print("🔍 Testando conexão via health check...")
         connection = get_db_connection()
+        
         if connection:
             cursor = connection.cursor()
             cursor.execute("SELECT version()")
             db_version = cursor.fetchone()[0]
+            
+            # Testar se tabelas existem
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+            tables = [row[0] for row in cursor.fetchall()]
+            
             cursor.close()
             connection.close()
             
             return {
-                "status": "OK", 
-                "database": "conectado",
-                "db_version": db_version,
+                "status": "✅ OK", 
+                "database": "CONECTADO",
+                "db_version": db_version[:50] + "..." if len(db_version) > 50 else db_version,
+                "tables_found": tables,
                 "env_info": env_info
             }, 200
         else:
             return {
-                "status": "ERRO", 
-                "database": "desconectado",
+                "status": "❌ ERRO", 
+                "database": "DESCONECTADO",
                 "env_info": env_info,
-                "message": "Falha na conexão com banco"
+                "message": "Todas as estratégias de conexão falharam",
+                "suggestion": "Verifique se o banco PostgreSQL está configurado no Render"
             }, 500
+            
     except Exception as e:
         return {
-            "status": "ERRO",
+            "status": "❌ ERRO CRÍTICO",
             "error": str(e),
-            "env_info": env_info if 'env_info' in locals() else {}
+            "env_info": env_info if 'env_info' in locals() else {},
+            "message": "Erro na execução do health check"
         }, 500
 
 @app.route('/')
