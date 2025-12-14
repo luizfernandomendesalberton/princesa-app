@@ -10,6 +10,10 @@ from functools import wraps
 # Variável global para tipo de banco
 USING_SQLITE = False
 
+def get_param_placeholder():
+    """Retorna o placeholder correto para parâmetros SQL"""
+    return "?" if USING_SQLITE else "%s"
+
 # Função helper para converter resultados do cursor em dicionários
 def cursor_to_dict(cursor, row):
     """Converte uma linha do cursor em dicionário (PostgreSQL ou SQLite)"""
@@ -477,17 +481,18 @@ def register():
             try:
                 cursor = connection.cursor()
                 # Verificar se usuário já existe
-                cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+                placeholder = get_param_placeholder()
+                cursor.execute(f"SELECT id FROM users WHERE username = {placeholder}", (username,))
                 if cursor.fetchone():
                     flash('Nome de usuário já existe!', 'error')
                     return render_template('register.html')
                 
                 # Criar novo usuário
                 hashed_password = generate_password_hash(password)
-                cursor.execute("""
-                    INSERT INTO users (username, password_hash, name)
-                    VALUES (%s, %s, %s)
-                """, (username, hashed_password, name))
+                if USING_SQLITE:
+                    cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)", (username, hashed_password, name))
+                else:
+                    cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (%s, %s, %s)", (username, hashed_password, name))
                 connection.commit()
                 cursor.close()
                 connection.close()
@@ -513,7 +518,8 @@ def login():
         connection = get_db_connection()
         if connection:
             cursor = connection.cursor()
-            cursor.execute("SELECT id, username, name, password_hash FROM users WHERE username = %s", (username,))
+            placeholder = get_param_placeholder()
+            cursor.execute(f"SELECT id, username, name, password_hash FROM users WHERE username = {placeholder}", (username,))
             user_row = cursor.fetchone()
             
             print(f"🔍 Login attempt - User: {username}")
@@ -561,9 +567,10 @@ def dashboard():
         cursor = connection.cursor()
         
         # Buscar tarefas pendentes
-        cursor.execute("""
+        placeholder = get_param_placeholder()
+        cursor.execute(f"""
             SELECT * FROM tasks 
-            WHERE user_id = %s AND completed = FALSE 
+            WHERE user_id = {placeholder} AND completed = {'0' if USING_SQLITE else 'FALSE'} 
             ORDER BY due_date ASC, priority DESC
             LIMIT 5
         """, (session['user_id'],))
@@ -582,10 +589,11 @@ def dashboard():
         }
         today_pt = day_mapping.get(today_name, 'segunda')
         
-        cursor.execute("""
+        placeholder = get_param_placeholder()
+        cursor.execute(f"""
             SELECT * FROM routines 
-            WHERE user_id = %s AND active = TRUE 
-            AND days_of_week LIKE %s
+            WHERE user_id = {placeholder} AND active = {'1' if USING_SQLITE else 'TRUE'} 
+            AND days_of_week LIKE {placeholder}
             ORDER BY time_schedule ASC
         """, (session['user_id'], f'%{today_pt}%'))
         today_routines = cursor_to_dict_list(cursor, cursor.fetchall())
@@ -606,9 +614,10 @@ def tasks():
     
     if connection:
         cursor = connection.cursor()
-        cursor.execute("""
+        placeholder = get_param_placeholder()
+        cursor.execute(f"""
             SELECT * FROM tasks 
-            WHERE user_id = %s 
+            WHERE user_id = {placeholder} 
             ORDER BY created_at DESC
         """, (session['user_id'],))
         tasks = cursor_to_dict_list(cursor, cursor.fetchall())
@@ -632,10 +641,16 @@ def add_task():
     connection = get_db_connection()
     if connection:
         cursor = connection.cursor()
-        cursor.execute("""
-            INSERT INTO tasks (user_id, title, description, priority, due_date)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (session['user_id'], title, description, priority, due_date or None))
+        if USING_SQLITE:
+            cursor.execute("""
+                INSERT INTO tasks (user_id, title, description, priority, due_date)
+                VALUES (?, ?, ?, ?, ?)
+            """, (session['user_id'], title, description, priority, due_date))
+        else:
+            cursor.execute("""
+                INSERT INTO tasks (user_id, title, description, priority, due_date)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (session['user_id'], title, description, priority, due_date))
         connection.commit()
         cursor.close()
         connection.close()
@@ -666,7 +681,8 @@ def delete_task(task_id):
     connection = get_db_connection()
     if connection:
         cursor = connection.cursor()
-        cursor.execute("DELETE FROM tasks WHERE id = %s AND user_id = %s", (task_id, session['user_id']))
+        placeholder = get_param_placeholder()
+        cursor.execute(f"DELETE FROM tasks WHERE id = {placeholder} AND user_id = {placeholder}", (task_id, session['user_id']))
         connection.commit()
         cursor.close()
         connection.close()
@@ -682,9 +698,10 @@ def routines():
     
     if connection:
         cursor = connection.cursor()
-        cursor.execute("""
+        placeholder = get_param_placeholder()
+        cursor.execute(f"""
             SELECT * FROM routines 
-            WHERE user_id = %s 
+            WHERE user_id = {placeholder} 
             ORDER BY time_schedule ASC
         """, (session['user_id'],))
         routines = cursor_to_dict_list(cursor, cursor.fetchall())
