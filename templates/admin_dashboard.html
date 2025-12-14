@@ -143,7 +143,9 @@
                         <div class="user-meta">
                             <div><strong>Usuário:</strong> {{ user.username }}</div>
                             <div><strong>ID:</strong> {{ user.id }}</div>
-                            <div><strong>Criado em:</strong> {{ user.created_at.strftime('%d/%m/%Y às %H:%M') if user.created_at else 'N/A' }}</div>
+                            <div><strong>Criado em:</strong> 
+                                {{ user.created_at_formatted or user.created_at or 'N/A' }}
+                            </div>
                         </div>
                     </div>
                     

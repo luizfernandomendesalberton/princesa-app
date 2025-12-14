@@ -772,12 +772,31 @@ def admin_login():
     if request.method == 'POST':
         admin_password = request.form['admin_password']
         
-        if admin_password == 'admin2025':
-            session['is_admin'] = True
-            flash('Login de administrador realizado com sucesso!', 'success')
-            return redirect(url_for('admin_dashboard'))
+        connection = get_db_connection()
+        if connection:
+            cursor = connection.cursor()
+            cursor.execute("SELECT * FROM users WHERE username = 'admin'")
+            admin_row = cursor.fetchone()
+            
+            # Converter para dict se necessário
+            if admin_row:
+                admin = cursor_to_dict(cursor, admin_row)
+                
+                if admin and check_password_hash(admin['password_hash'], admin_password):
+                    session['is_admin'] = True
+                    flash('Login de administrador realizado com sucesso! 👑', 'success')
+                    cursor.close()
+                    connection.close()
+                    return redirect(url_for('admin_dashboard'))
+                else:
+                    flash('Senha de administrador incorreta! Use: admin2025', 'error')
+            else:
+                flash('Usuário admin não encontrado no banco!', 'error')
+            
+            cursor.close()
+            connection.close()
         else:
-            flash('Senha de administrador incorreta!', 'error')
+            flash('Erro de conexão com banco!', 'error')
     
     return render_template('admin_login.html')
 
@@ -793,7 +812,22 @@ def admin_dashboard():
     if connection:
         cursor = connection.cursor()
         cursor.execute("SELECT id, username, name, created_at FROM users ORDER BY created_at DESC")
-        users = cursor_to_dict_list(cursor, cursor.fetchall())
+        users_raw = cursor_to_dict_list(cursor, cursor.fetchall())
+        
+        # Formatar datas para SQLite se necessário
+        users = []
+        for user in users_raw:
+            user_dict = dict(user)
+            if USING_SQLITE and user_dict.get('created_at'):
+                # SQLite retorna string, vamos formatar para display
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(user_dict['created_at'].replace('Z', '+00:00'))
+                    user_dict['created_at_formatted'] = dt.strftime('%d/%m/%Y às %H:%M')
+                except:
+                    user_dict['created_at_formatted'] = user_dict['created_at'][:19]  # Primeiro 19 chars
+            users.append(user_dict)
+        
         cursor.close()
         connection.close()
     
