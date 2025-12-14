@@ -45,6 +45,58 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 # Configuração para produção
 app.secret_key = os.environ.get('SECRET_KEY', 'princesa_ana_paula_2025_secret_key_muito_segura')
 
+# Middleware para garantir que o banco esteja sempre inicializado
+@app.before_request
+def ensure_database():
+    """Garante que o banco esteja inicializado antes de cada requisição"""
+    if not hasattr(app, 'db_initialized'):
+        try:
+            print("🔄 Verificando inicialização do banco...")
+            connection = get_db_connection()
+            if connection:
+                cursor = connection.cursor()
+                # Testar se as tabelas existem
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+                if not cursor.fetchone():
+                    print("📋 Tabelas não encontradas, reinicializando...")
+                    cursor.close()
+                    connection.close()
+                    init_db()
+                else:
+                    # Verificar se usuários padrão existem
+                    cursor.execute("SELECT COUNT(*) FROM users WHERE username IN ('admin', 'ana_paula')")
+                    user_count = cursor.fetchone()[0]
+                    if user_count < 2:
+                        print("👥 Usuários padrão não encontrados, recriando...")
+                        # Recriar usuários padrão
+                        cursor.execute("DELETE FROM users WHERE username IN ('admin', 'ana_paula')")
+                        
+                        admin_password = generate_password_hash('admin2025')
+                        cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
+                                     ('admin', admin_password, 'Administrador'))
+                        
+                        user_password = generate_password_hash('princesa123')
+                        cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
+                                     ('ana_paula', user_password, 'Ana Paula Schlickmann Michels'))
+                        
+                        connection.commit()
+                        print("✅ Usuários padrão recriados!")
+                    
+                cursor.close()
+                connection.close()
+            
+            app.db_initialized = True
+            print("✅ Banco verificado e inicializado!")
+        except Exception as e:
+            print(f"❌ Erro na verificação do banco: {e}")
+            # Tentar inicialização completa
+            try:
+                init_db()
+                app.db_initialized = True
+                print("🔄 Banco reinicializado com sucesso!")
+            except Exception as init_error:
+                print(f"❌ Erro crítico na inicialização: {init_error}")
+
 # Filtro customizado para formatar timedelta
 @app.template_filter('format_time')
 def format_time(time_value):
@@ -129,10 +181,16 @@ def try_postgresql_connection(database_url):
 def get_sqlite_connection():
     """Cria conexão SQLite como fallback"""
     try:
-        # Criar diretório para o banco se não existir
-        db_path = 'princesa.db'
-        connection = sqlite3.connect(db_path)
+        # Usar caminho absoluto para persistência melhor
+        import tempfile
+        db_dir = os.environ.get('DATABASE_DIR', tempfile.gettempdir())
+        os.makedirs(db_dir, exist_ok=True)
+        db_path = os.path.join(db_dir, 'princesa.db')
+        
+        connection = sqlite3.connect(db_path, timeout=20.0)
         connection.row_factory = sqlite3.Row  # Para acessar colunas por nome
+        connection.execute('PRAGMA journal_mode=WAL')  # Melhor para concorrência
+        connection.execute('PRAGMA synchronous=NORMAL')  # Melhor performance
         print(f"✅ SQLite conectado: {db_path}")
         return connection
     except Exception as e:
@@ -157,6 +215,7 @@ def init_sqlite_db(connection):
     """Inicializa banco SQLite com tabelas adaptadas"""
     try:
         cursor = connection.cursor()
+        print(f"🛠️ Inicializando tabelas SQLite...")
         
         # Tabelas SQLite
         cursor.execute("""
@@ -209,20 +268,21 @@ def init_sqlite_db(connection):
             )
         """)
         
-        # Criar usuários padrão
-        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
-        if cursor.fetchone()[0] == 0:
-            admin_password = generate_password_hash('admin2025')
-            cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
-                         ('admin', admin_password, 'Administrador'))
-            print("👑 Admin SQLite criado")
+        # Criar usuários padrão (sempre recria para garantir persistência no Render)
+        # Limpar e recriar usuários padrão para evitar problemas de persistência
+        cursor.execute("DELETE FROM users WHERE username IN ('admin', 'ana_paula')")
         
-        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'ana_paula'")
-        if cursor.fetchone()[0] == 0:
-            user_password = generate_password_hash('princesa123')
-            cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
-                         ('ana_paula', user_password, 'Ana Paula Schlickmann Michels'))
-            print("✅ Ana Paula SQLite criada")
+        # Admin
+        admin_password = generate_password_hash('admin2025')
+        cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
+                     ('admin', admin_password, 'Administrador'))
+        print("👑 Admin SQLite criado")
+        
+        # Ana Paula
+        user_password = generate_password_hash('princesa123')
+        cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
+                     ('ana_paula', user_password, 'Ana Paula Schlickmann Michels'))
+        print("✅ Ana Paula SQLite criada")
         
         connection.commit()
         cursor.close()
@@ -489,11 +549,11 @@ def register():
                 
                 # Criar novo usuário
                 hashed_password = generate_password_hash(password)
-                if USING_SQLITE:
-                    cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)", (username, hashed_password, name))
-                else:
-                    cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (%s, %s, %s)", (username, hashed_password, name))
+                placeholder = get_param_placeholder()
+                print(f"🔍 Tentando cadastrar usuário: {username}")
+                cursor.execute(f"INSERT INTO users (username, password_hash, name) VALUES ({placeholder}, {placeholder}, {placeholder})", (username, hashed_password, name))
                 connection.commit()
+                print(f"✅ Usuário {username} cadastrado com sucesso!")
                 cursor.close()
                 connection.close()
                 
@@ -851,10 +911,13 @@ def admin_change_password():
         hashed_password = generate_password_hash(new_password)
         
         placeholder = get_param_placeholder()
+        print(f"🔍 Alterando senha do usuário ID: {user_id}")
         cursor.execute(f"UPDATE users SET password_hash = {placeholder} WHERE id = {placeholder}", 
                       (hashed_password, user_id))
         
+        rows_affected = cursor.rowcount
         connection.commit()
+        print(f"✅ Senha alterada! Linhas afetadas: {rows_affected}")
         cursor.close()
         connection.close()
         flash('Senha alterada com sucesso! ✅', 'success')
