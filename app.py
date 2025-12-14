@@ -46,18 +46,30 @@ def get_db_connection():
     try:
         if os.environ.get('DATABASE_URL'):
             # Produção (PostgreSQL no Render)
-            connection = psycopg2.connect(os.environ['DATABASE_URL'])
+            database_url = os.environ['DATABASE_URL']
+            # Fix para URLs do Render que podem usar postgres:// ao invés de postgresql://
+            if database_url.startswith('postgres://'):
+                database_url = database_url.replace('postgres://', 'postgresql://', 1)
+            
+            connection = psycopg2.connect(
+                database_url,
+                sslmode='require'  # Render requer SSL
+            )
         else:
-            # Desenvolvimento local (pode usar SQLite ou PostgreSQL local)
+            # Desenvolvimento local (PostgreSQL local)
             connection = psycopg2.connect(
                 host='localhost',
                 database='princesa_db',
                 user='postgres', 
                 password='sua_senha_local'
             )
+        
         return connection
     except psycopg2.Error as err:
         print(f"Erro ao conectar com o banco: {err}")
+        return None
+    except Exception as e:
+        print(f"Erro geral na conexão: {e}")
         return None
 
 def init_db():
@@ -210,11 +222,32 @@ def login_required(f):
     return decorated_function
 
 # Rotas da aplicação
+@app.route('/health')
+def health_check():
+    """Rota para verificar saúde da aplicação"""
+    try:
+        # Testar conexão com banco
+        connection = get_db_connection()
+        if connection:
+            cursor = connection.cursor()
+            cursor.execute("SELECT 1")
+            cursor.close()
+            connection.close()
+            return "OK - Banco conectado", 200
+        else:
+            return "ERRO - Falha na conexão com banco", 500
+    except Exception as e:
+        return f"ERRO - {str(e)}", 500
+
 @app.route('/')
 def index():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard'))
-    return redirect(url_for('login'))
+    try:
+        if 'user_id' in session:
+            return redirect(url_for('dashboard'))
+        return redirect(url_for('login'))
+    except Exception as e:
+        print(f"Erro na rota index: {e}")
+        return f"Erro interno: {str(e)}", 500
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -535,17 +568,22 @@ def service_worker():
 def offline():
     return render_template('offline.html')
 
-# Health check para monitoramento
-@app.route('/health')
-def health_check():
-    return {'status': 'healthy', 'app': 'Princesa Ana Paula'}, 200
-
 if __name__ == '__main__':
-    # Inicializar DB apenas em desenvolvimento
+    print("Iniciando aplicação Princesa...")
+    # Inicializar DB em desenvolvimento
     if not os.environ.get('DATABASE_URL'):
+        print("Modo desenvolvimento - inicializando DB local")
         init_db()
     
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') != 'production'
     
     app.run(debug=debug, host='0.0.0.0', port=port)
+else:
+    # Em produção, inicializar DB na primeira carga
+    print("Modo produção - inicializando DB")
+    try:
+        init_db()
+        print("✅ Banco inicializado com sucesso em produção!")
+    except Exception as e:
+        print(f"❌ Erro ao inicializar banco: {e}")
