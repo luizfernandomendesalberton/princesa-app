@@ -179,35 +179,35 @@ def init_db():
         # Inserir dados de exemplo apenas para usuário novo
         user_id = cursor.fetchone()[0]
         print(f"✅ Usuário ana_paula criado com ID: {user_id}")
-            
-            # Tarefas de exemplo
-            tasks_example = [
+        
+        # Tarefas de exemplo
+        tasks_example = [
                 ('💄 Rotina de skincare matinal', 'Limpeza, hidratante e protetor solar', 'alta', datetime.now().date()),
                 ('👗 Escolher look do dia', 'Combinar roupas e acessórios lindos', 'media', datetime.now().date()),
                 ('📚 Estudar 30 minutos', 'Focar nos estudos importantes', 'alta', datetime.now().date()),
                 ('🥗 Preparar almoço saudável', 'Cozinhar algo nutritivo e gostoso', 'media', datetime.now().date()),
                 ('🧘‍♀️ Momento de relaxamento', '15 minutos de meditação ou respiração', 'baixa', datetime.now().date())
-            ]
-            
-            for task in tasks_example:
-                cursor.execute("""
-                    INSERT INTO tasks (user_id, title, description, priority, due_date)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (user_id, task[0], task[1], task[2], task[3]))
-            
-            # Rotinas de exemplo
-            routines_example = [
-                ('☀️ Acordar como uma princesa', 'Levantar cedo e começar o dia com energia', '07:00:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo'),
-                ('💄 Skincare matinal', 'Rotina de cuidados com a pele pela manhã', '07:30:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo'),
-                ('🍎 Café da manhã nutritivo', 'Tomar um café da manhã saudável e saboroso', '08:00:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo'),
-                ('💪 Exercícios ou alongamento', '20 minutos de atividade física', '18:00:00', 'segunda,quarta,sexta'),
-                ('🌙 Skincare noturno', 'Rotina de cuidados noturnos', '21:30:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo')
-            ]
-            
-            for routine in routines_example:
-                cursor.execute("""
-                    INSERT INTO routines (user_id, title, description, time_schedule, days_of_week)
-                    VALUES (%s, %s, %s, %s, %s)
+        ]
+        
+        for task in tasks_example:
+            cursor.execute("""
+                INSERT INTO tasks (user_id, title, description, priority, due_date)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (user_id, task[0], task[1], task[2], task[3]))
+        
+        # Rotinas de exemplo
+        routines_example = [
+            ('☀️ Acordar como uma princesa', 'Levantar cedo e começar o dia com energia', '07:00:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo'),
+            ('💄 Skincare matinal', 'Rotina de cuidados com a pele pela manhã', '07:30:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo'),
+            ('🍎 Café da manhã nutritivo', 'Tomar um café da manhã saudável e saboroso', '08:00:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo'),
+            ('💪 Exercícios ou alongamento', '20 minutos de atividade física', '18:00:00', 'segunda,quarta,sexta'),
+            ('🌙 Skincare noturno', 'Rotina de cuidados noturnos', '21:30:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo')
+        ]
+        
+        for routine in routines_example:
+            cursor.execute("""
+                INSERT INTO routines (user_id, title, description, time_schedule, days_of_week)
+                VALUES (%s, %s, %s, %s, %s)
                 """, (user_id, routine[0], routine[1], routine[2], routine[3]))
         
         connection.commit()
