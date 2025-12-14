@@ -1,0 +1,225 @@
+/* Tasks Page Styles - Princesa Ana Paula */
+
+.tasks-page {
+    padding: 2rem 0;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+    border-radius: 15px;
+    color: white;
+}
+
+.page-header h2 {
+    margin: 0;
+    font-weight: bold;
+}
+
+.tasks-container {
+    min-height: 400px;
+}
+
+.tasks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    padding: 1rem 0;
+}
+
+.task-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.task-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+.task-card.pending {
+    border-color: #ffb6c1;
+}
+
+.task-card.completed {
+    border-color: #90EE90;
+    opacity: 0.7;
+    background: #f8fff8;
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.task-checkbox {
+    position: relative;
+}
+
+.task-checkbox input[type="checkbox"] {
+    opacity: 0;
+    position: absolute;
+}
+
+.task-checkbox label {
+    display: inline-block;
+    width: 25px;
+    height: 25px;
+    border: 2px solid #ff69b4;
+    border-radius: 50%;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.task-checkbox input[type="checkbox"]:checked + label {
+    background: #ff69b4;
+    border-color: #ff69b4;
+}
+
+.task-checkbox input[type="checkbox"]:checked + label::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.task-priority {
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.priority-baixa {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.priority-media {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.priority-alta {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.task-content {
+    margin: 1.5rem 0;
+}
+
+.task-title {
+    color: #333;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.task-card.completed .task-title {
+    text-decoration: line-through;
+    color: #6c757d;
+}
+
+.task-description {
+    color: #6c757d;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.task-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f1f1;
+}
+
+.task-date {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.task-date i {
+    margin-right: 0.5rem;
+    color: #ff69b4;
+}
+
+.empty-tasks {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #6c757d;
+}
+
+.empty-illustration {
+    font-size: 6rem;
+    margin-bottom: 2rem;
+    color: #ffb6c1;
+}
+
+.empty-tasks h4 {
+    color: #495057;
+    margin-bottom: 1rem;
+}
+
+.empty-tasks p {
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+.princess-input {
+    border: 2px solid #ffb6c1;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.princess-input:focus {
+    border-color: #ff69b4;
+    box-shadow: 0 0 0 0.2rem rgba(255, 105, 180, 0.25);
+    outline: none;
+}
+
+.princess-btn-primary {
+    background: linear-gradient(45deg, #ff69b4, #ff1493);
+    border: none;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.princess-btn-primary:hover {
+    background: linear-gradient(45deg, #ff1493, #dc143c);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(255, 20, 147, 0.3);
+}
+
+.btn-outline-danger {
+    border-color: #ff69b4;
+    color: #ff69b4;
+}
+
+.btn-outline-danger:hover {
+    background-color: #ff69b4;
+    border-color: #ff69b4;
+    color: white;
+}

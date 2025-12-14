@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Princesa Ana Paula{% endblock %}
+
+{% block styles %}
+<link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid princess-dashboard">
+    <div class="row">
+        <div class="col-12">
+            <div class="welcome-header">
+                <h1 class="display-4">
+                    <i class="fas fa-crown"></i> 
+                    Bem-vinda ao seu Reino, {{ user_name }}! 
+                    <i class="fas fa-heart"></i>
+                </h1>
+                <p class="lead">Aqui está um resumo do seu dia de princesa</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-6 mb-4">
+            <div class="princess-card">
+                <div class="card-header">
+                    <h5><i class="fas fa-tasks text-pink"></i> Suas Próximas Tarefas</h5>
+                </div>
+                <div class="card-body">
+                    {% if tasks %}
+                        {% for task in tasks %}
+                        <div class="task-item {{ 'completed' if task.completed else 'pending' }}">
+                            <div class="task-info">
+                                <h6>{{ task.title }}</h6>
+                                {% if task.description %}
+                                <p class="task-description">{{ task.description }}</p>
+                                {% endif %}
+                                {% if task.due_date %}
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar"></i> {{ task.due_date.strftime('%d/%m/%Y') }}
+                                </small>
+                                {% endif %}
+                            </div>
+                            <div class="task-priority priority-{{ task.priority }}">
+                                {{ task.priority.title() }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="text-center mt-3">
+                            <a href="{{ url_for('tasks') }}" class="btn princess-btn-outline">
+                                Ver Todas as Tarefas <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="fas fa-check-circle text-success"></i>
+                            <h6>Parabéns, Princesa!</h6>
+                            <p>Você não tem tarefas pendentes no momento!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="princess-card">
+                <div class="card-header">
+                    <h5><i class="fas fa-calendar-alt text-purple"></i> Rotinas de Hoje</h5>
+                </div>
+                <div class="card-body">
+                    {% if routines %}
+                        {% for routine in routines %}
+                        <div class="routine-item">
+                            <div class="routine-time">
+                                <i class="fas fa-clock"></i>
+                                {{ routine.time_schedule | format_time }}
+                            </div>
+                            <div class="routine-info">
+                                <h6>{{ routine.title }}</h6>
+                                {% if routine.description %}
+                                <p class="routine-description">{{ routine.description }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="routine-status">
+                                <button class="btn btn-sm princess-btn-success" data-routine-id="{{ routine.id }}" onclick="markRoutineExecuted(this.getAttribute('data-routine-id'))">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="text-center mt-3">
+                            <a href="{{ url_for('routines') }}" class="btn princess-btn-outline">
+                                Ver Todas as Rotinas <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="fas fa-spa text-info"></i>
+                            <h6>Dia Livre!</h6>
+                            <p>Você não tem rotinas agendadas para hoje.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="quick-actions">
+                <h5><i class="fas fa-magic"></i> Ações Rápidas</h5>
+                <div class="action-buttons">
+                    <button class="btn princess-btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                        <i class="fas fa-plus"></i> Nova Tarefa
+                    </button>
+                    <button class="btn princess-btn-secondary" data-bs-toggle="modal" data-bs-target="#addRoutineModal">
+                        <i class="fas fa-calendar-plus"></i> Nova Rotina
+                    </button>
+                    <a href="{{ url_for('tasks') }}" class="btn princess-btn-info">
+                        <i class="fas fa-list"></i> Ver Tarefas
+                    </a>
+                    <a href="{{ url_for('routines') }}" class="btn princess-btn-warning">
+                        <i class="fas fa-calendar"></i> Ver Rotinas
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para adicionar tarefa -->
+<div class="modal fade" id="addTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus"></i> Nova Tarefa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_task') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Título da Tarefa</label>
+                        <input type="text" class="form-control" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <textarea class="form-control" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Prioridade</label>
+                        <select class="form-control" name="priority">
+                            <option value="baixa">Baixa</option>
+                            <option value="media" selected>Média</option>
+                            <option value="alta">Alta</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Data de Vencimento</label>
+                        <input type="date" class="form-control" name="due_date">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn princess-btn-primary">Adicionar Tarefa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

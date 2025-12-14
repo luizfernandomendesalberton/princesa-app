@@ -1,0 +1,417 @@
+/* Estilo Principal da Princesa Ana Paula */
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --princess-pink: #ff69b4;
+    --princess-purple: #9c27b0;
+    --princess-light-pink: #ffb6c1;
+    --princess-lavender: #e1bee7;
+    --princess-rose-gold: #e91e63;
+    --princess-soft-white: #fefefe;
+    --princess-light-gray: #f8f9fa;
+    --shadow-soft: 0 5px 15px rgba(0, 0, 0, 0.08);
+    --shadow-hover: 0 15px 35px rgba(0, 0, 0, 0.15);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #ffeef8 0%, #f8e8ff 50%, #ffe8f5 100%);
+    min-height: 100vh;
+    line-height: 1.6;
+    color: #333;
+}
+
+.princess-container {
+    position: relative;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* Navbar Styling */
+.princess-navbar {
+    background: linear-gradient(135deg, var(--princess-pink) 0%, var(--princess-purple) 100%);
+    backdrop-filter: blur(10px);
+    border: none;
+    box-shadow: var(--shadow-soft);
+    padding: 1rem 0;
+}
+
+.princess-brand {
+    font-family: 'Dancing Script', cursive;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: white !important;
+    text-decoration: none;
+    transition: var(--transition-smooth);
+}
+
+.princess-brand:hover {
+    transform: scale(1.05);
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+}
+
+.princess-brand i {
+    color: #ffd700;
+    margin-right: 0.5rem;
+    animation: crown-glow 3s ease-in-out infinite;
+}
+
+@keyframes crown-glow {
+    0%, 100% { 
+        transform: rotate(0deg);
+        text-shadow: 0 0 10px #ffd700;
+    }
+    50% { 
+        transform: rotate(-5deg);
+        text-shadow: 0 0 20px #ffd700, 0 0 30px #ffed4e;
+    }
+}
+
+.navbar-nav .nav-link {
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-weight: 500;
+    margin: 0 0.5rem;
+    padding: 0.5rem 1rem !important;
+    border-radius: 25px;
+    transition: var(--transition-smooth);
+}
+
+.navbar-nav .nav-link:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white !important;
+    transform: translateY(-2px);
+}
+
+.princess-user {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 25px;
+    padding: 0.5rem 1rem !important;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    padding: 2rem 0;
+}
+
+/* Princess Hearts Animation */
+.princess-hearts {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+    overflow: hidden;
+}
+
+.heart {
+    position: absolute;
+    font-size: 2rem;
+    opacity: 0.3;
+    animation: float-hearts 15s ease-in-out infinite;
+}
+
+.heart-1 {
+    top: 10%;
+    left: 10%;
+    animation-delay: 0s;
+}
+
+.heart-2 {
+    top: 20%;
+    right: 15%;
+    animation-delay: 3s;
+}
+
+.heart-3 {
+    bottom: 30%;
+    left: 20%;
+    animation-delay: 6s;
+}
+
+.heart-4 {
+    bottom: 15%;
+    right: 25%;
+    animation-delay: 9s;
+}
+
+.heart-5 {
+    top: 50%;
+    left: 50%;
+    animation-delay: 12s;
+}
+
+@keyframes float-hearts {
+    0%, 100% { 
+        transform: translateY(0px) rotate(0deg) scale(1);
+        opacity: 0.3;
+    }
+    25% { 
+        transform: translateY(-20px) rotate(90deg) scale(1.1);
+        opacity: 0.5;
+    }
+    50% { 
+        transform: translateY(-10px) rotate(180deg) scale(0.9);
+        opacity: 0.4;
+    }
+    75% { 
+        transform: translateY(-15px) rotate(270deg) scale(1.05);
+        opacity: 0.6;
+    }
+}
+
+/* Cards and Components */
+.princess-card {
+    background: var(--princess-soft-white);
+    border-radius: 20px;
+    box-shadow: var(--shadow-soft);
+    border: 2px solid rgba(255, 182, 193, 0.2);
+    overflow: hidden;
+    transition: var(--transition-smooth);
+    backdrop-filter: blur(10px);
+}
+
+.princess-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--princess-light-pink);
+}
+
+/* Buttons */
+.princess-btn-primary {
+    background: linear-gradient(45deg, var(--princess-pink), var(--princess-rose-gold));
+    border: none;
+    color: white;
+    padding: 0.75rem 2rem;
+    border-radius: 30px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: var(--transition-smooth);
+    position: relative;
+    overflow: hidden;
+}
+
+.princess-btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s;
+}
+
+.princess-btn-primary:hover::before {
+    left: 100%;
+}
+
+.princess-btn-primary:hover {
+    background: linear-gradient(45deg, var(--princess-rose-gold), #d81b60);
+    transform: translateY(-3px);
+    box-shadow: 0 15px 30px rgba(233, 30, 99, 0.4);
+}
+
+.princess-btn-secondary {
+    background: linear-gradient(45deg, var(--princess-purple), #673ab7);
+    border: none;
+    color: white;
+    padding: 0.75rem 2rem;
+    border-radius: 30px;
+    font-weight: 600;
+    transition: var(--transition-smooth);
+}
+
+.princess-btn-secondary:hover {
+    background: linear-gradient(45deg, #673ab7, #3f51b5);
+    transform: translateY(-3px);
+    box-shadow: 0 15px 30px rgba(103, 58, 183, 0.4);
+}
+
+/* Form Elements */
+.princess-input, .princess-select {
+    border: 2px solid var(--princess-light-pink);
+    border-radius: 15px;
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+    transition: var(--transition-smooth);
+    background: var(--princess-soft-white);
+}
+
+.princess-input:focus, .princess-select:focus {
+    border-color: var(--princess-pink);
+    box-shadow: 0 0 0 0.3rem rgba(255, 105, 180, 0.25);
+    outline: none;
+    transform: scale(1.02);
+}
+
+/* Alerts and Messages */
+.alert {
+    border-radius: 15px;
+    border: none;
+    padding: 1rem 1.5rem;
+    font-weight: 500;
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #d4edda, #c3e6cb);
+    color: #155724;
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+    color: #721c24;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+    color: #0c5460;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .princess-brand {
+        font-size: 1.4rem;
+    }
+    
+    .heart {
+        font-size: 1.5rem;
+    }
+    
+    .main-content {
+        padding: 1rem 0;
+    }
+    
+    .princess-btn-primary, .princess-btn-secondary {
+        padding: 0.6rem 1.5rem;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .princess-hearts {
+        display: none; /* Remove hearts on very small screens */
+    }
+    
+    .princess-card {
+        margin: 0.5rem;
+        border-radius: 15px;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.4rem 0.8rem !important;
+        margin: 0.2rem;
+    }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--princess-light-gray);
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(var(--princess-pink), var(--princess-purple));
+    border-radius: 6px;
+    border: 2px solid var(--princess-light-gray);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(var(--princess-rose-gold), var(--princess-pink));
+}
+
+/* Loading Animation */
+.princess-loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 105, 180, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--princess-pink);
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Utility Classes */
+.text-princess-pink {
+    color: var(--princess-pink) !important;
+}
+
+.text-princess-purple {
+    color: var(--princess-purple) !important;
+}
+
+.bg-princess-gradient {
+    background: linear-gradient(135deg, var(--princess-pink) 0%, var(--princess-purple) 100%) !important;
+}
+
+.shadow-princess {
+    box-shadow: var(--shadow-soft) !important;
+}
+
+.shadow-princess-hover {
+    box-shadow: var(--shadow-hover) !important;
+}
+
+/* Special Effects */
+.princess-sparkle {
+    position: relative;
+    overflow: hidden;
+}
+
+.princess-sparkle::after {
+    content: '✨';
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    font-size: 1.2rem;
+    animation: sparkle-twinkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle-twinkle {
+    0%, 100% { 
+        opacity: 0;
+        transform: scale(0.8) rotate(0deg);
+    }
+    50% { 
+        opacity: 1;
+        transform: scale(1.2) rotate(180deg);
+    }
+}
+
+/* Print Styles */
+@media print {
+    .princess-hearts,
+    .navbar,
+    .princess-btn-primary,
+    .princess-btn-secondary {
+        display: none !important;
+    }
+    
+    .princess-card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    body {
+        background: white !important;
+    }
+}

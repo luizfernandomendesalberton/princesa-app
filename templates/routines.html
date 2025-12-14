@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Minhas Rotinas - Princesa Ana Paula{% endblock %}
+
+{% block styles %}
+<link href="{{ url_for('static', filename='css/routines.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid routines-page">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header">
+                <h2><i class="fas fa-calendar-alt"></i> Minhas Rotinas de Princesa</h2>
+                <button class="btn princess-btn-primary" data-bs-toggle="modal" data-bs-target="#addRoutineModal">
+                    <i class="fas fa-plus"></i> Nova Rotina
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="routines-container">
+                {% if routines %}
+                    <div class="routines-grid">
+                        {% for routine in routines %}
+                        <div class="routine-card {{ 'active' if routine.active else 'inactive' }}" data-routine-id="{{ routine.id }}">
+                            <div class="routine-header">
+                                <div class="routine-toggle">
+                                    <label class="switch">
+                                        <input type="checkbox" {{ 'checked' if routine.active else '' }}
+                                           data-routine-id="{{ routine.id }}" onchange="toggleRoutine(this.getAttribute('data-routine-id'))">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="routine-time">
+                                    <i class="fas fa-clock"></i>
+                                    {{ routine.time_schedule | format_time }}
+                                </div>
+                            </div>
+                            
+                            <div class="routine-content">
+                                <h5 class="routine-title">{{ routine.title }}</h5>
+                                {% if routine.description %}
+                                <p class="routine-description">{{ routine.description }}</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="routine-days">
+                                {% set days_map = {
+                                    'segunda': 'Seg',
+                                    'terca': 'Ter', 
+                                    'quarta': 'Qua',
+                                    'quinta': 'Qui',
+                                    'sexta': 'Sex',
+                                    'sabado': 'Sáb',
+                                    'domingo': 'Dom'
+                                } %}
+                                {% for day in routine.days_of_week.split(',') if routine.days_of_week %}
+                                    <span class="day-badge">{{ days_map.get(day.strip(), day) }}</span>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="routine-footer">
+                                <button class="btn btn-sm princess-btn-success" data-routine-id="{{ routine.id }}" onclick="markRoutineExecuted(this.getAttribute('data-routine-id'))">
+                                    <i class="fas fa-check"></i> Executar
+                                </button>
+                                <div class="routine-actions">
+                                    <button class="btn btn-sm btn-outline-secondary" data-routine-id="{{ routine.id }}" onclick="editRoutine(this.getAttribute('data-routine-id'))">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" data-routine-id="{{ routine.id }}" onclick="deleteRoutine(this.getAttribute('data-routine-id'))">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-routines">
+                        <div class="empty-illustration">
+                            <i class="fas fa-spa"></i>
+                        </div>
+                        <h4>Nenhuma rotina criada!</h4>
+                        <p>Organize seu dia criando rotinas personalizadas que te ajudem a manter uma vida equilibrada de princesa!</p>
+                        <button class="btn princess-btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addRoutineModal">
+                            <i class="fas fa-plus"></i> Criar Primeira Rotina
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para adicionar rotina -->
+<div class="modal fade" id="addRoutineModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus"></i> Nova Rotina de Princesa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_routine') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-heading"></i> Nome da Rotina
+                            </label>
+                            <input type="text" class="form-control princess-input" name="title" 
+                                   placeholder="Ex: Exercícios matinais, Skincare noturno..." required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-align-left"></i> Descrição da Rotina
+                            </label>
+                            <textarea class="form-control princess-input" name="description" rows="3" 
+                                      placeholder="Descreva o que envolve esta rotina..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-clock"></i> Horário
+                            </label>
+                            <input type="time" class="form-control princess-input" name="time_schedule">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-calendar-week"></i> Dias da Semana
+                            </label>
+                            <div class="days-selector">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="segunda" id="seg">
+                                    <label class="form-check-label" for="seg">Seg</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="terca" id="ter">
+                                    <label class="form-check-label" for="ter">Ter</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="quarta" id="qua">
+                                    <label class="form-check-label" for="qua">Qua</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="quinta" id="qui">
+                                    <label class="form-check-label" for="qui">Qui</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="sexta" id="sex">
+                                    <label class="form-check-label" for="sex">Sex</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="sabado" id="sab">
+                                    <label class="form-check-label" for="sab">Sáb</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="domingo" id="dom">
+                                    <label class="form-check-label" for="dom">Dom</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn princess-btn-primary">
+                        <i class="fas fa-heart"></i> Criar Rotina
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/routines.js') }}"></script>
+{% endblock %}

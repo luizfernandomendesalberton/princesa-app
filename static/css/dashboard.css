@@ -1,0 +1,174 @@
+/* Dashboard Page Styles - Princesa Ana Paula */
+
+.princess-dashboard {
+    padding: 2rem 0;
+}
+
+.welcome-header {
+    text-align: center;
+    padding: 2rem 0;
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+    border-radius: 20px;
+    color: white;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.princess-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    border: none;
+    overflow: hidden;
+    height: 100%;
+}
+
+.princess-card .card-header {
+    background: linear-gradient(45deg, #ff69b4, #ff1493);
+    color: white;
+    border: none;
+    padding: 1rem 1.5rem;
+}
+
+.task-item, .routine-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.task-item:hover, .routine-item:hover {
+    background-color: #fff5f8;
+}
+
+.task-info, .routine-info {
+    flex: 1;
+}
+
+.task-description, .routine-description {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin: 0.5rem 0 0 0;
+}
+
+.task-priority {
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.priority-baixa {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.priority-media {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.priority-alta {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.routine-time {
+    min-width: 80px;
+    text-align: center;
+    color: #6f42c1;
+    font-weight: bold;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.quick-actions {
+    text-align: center;
+    padding: 2rem;
+    background: #f8f9fa;
+    border-radius: 15px;
+    margin-top: 2rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 1.5rem;
+}
+
+.princess-btn-primary {
+    background: linear-gradient(45deg, #ff69b4, #ff1493);
+    border: none;
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+}
+
+.princess-btn-secondary {
+    background: linear-gradient(45deg, #6f42c1, #9c27b0);
+    border: none;
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 25px;
+}
+
+.princess-btn-info {
+    background: linear-gradient(45deg, #17a2b8, #20c997);
+    border: none;
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 25px;
+}
+
+.princess-btn-warning {
+    background: linear-gradient(45deg, #ffc107, #fd7e14);
+    border: none;
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 25px;
+}
+
+.princess-btn-outline {
+    border: 2px solid #ff69b4;
+    color: #ff69b4;
+    background: transparent;
+    padding: 0.5rem 1.5rem;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+}
+
+.princess-btn-outline:hover {
+    background: #ff69b4;
+    color: white;
+}
+
+.princess-btn-success {
+    background: linear-gradient(45deg, #28a745, #20c997);
+    border: none;
+    color: white;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+}
+
+.text-pink {
+    color: #ff69b4 !important;
+}
+
+.text-purple {
+    color: #6f42c1 !important;
+}

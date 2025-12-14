@@ -1,0 +1,42 @@
+# Arquivos desnecessários para deploy
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.env
+.DS_Store
+*.sqlite
+*.db
+
+# Arquivos específicos do Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Arquivos do VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Arquivos temporários
+*.tmp
+*.temp
+
+# Node modules (se houver)
+node_modules/
+npm-debug.log*
+
+# Arquivos de backup
+*.bak
+*.backup
+
+# Arquivos de desenvolvimento local
+config_local.py
+local_settings.py

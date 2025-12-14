@@ -1,0 +1,1 @@
+web: gunicorn --chdir back-end sever:app --host 0.0.0.0 --port $PORT

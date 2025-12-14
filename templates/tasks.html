@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Minhas Tarefas - Princesa Ana Paula{% endblock %}
+
+{% block styles %}
+<link href="{{ url_for('static', filename='css/tasks.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid tasks-page">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header">
+                <h2><i class="fas fa-tasks"></i> Minhas Tarefas de Princesa</h2>
+                <button class="btn princess-btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                    <i class="fas fa-plus"></i> Nova Tarefa
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="tasks-container">
+                {% if tasks %}
+                    <div class="tasks-grid">
+                        {% for task in tasks %}
+                        <div class="task-card {{ 'completed' if task.completed else 'pending' }}" data-task-id="{{ task.id }}">
+                            <div class="task-header">
+                                <div class="task-checkbox">
+                                    <input type="checkbox" id="task-{{ task.id }}" 
+                                           {{ 'checked' if task.completed else '' }}
+                                           data-task-id="{{ task.id }}" onchange="toggleTask(this.getAttribute('data-task-id'))">
+                                    <label for="task-{{ task.id }}"></label>
+                                </div>
+                                <div class="task-priority priority-{{ task.priority }}">
+                                    {{ task.priority.title() }}
+                                </div>
+                            </div>
+                            
+                            <div class="task-content">
+                                <h5 class="task-title">{{ task.title }}</h5>
+                                {% if task.description %}
+                                <p class="task-description">{{ task.description }}</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="task-footer">
+                                {% if task.due_date %}
+                                <div class="task-date">
+                                    <i class="fas fa-calendar"></i>
+                                    {{ task.due_date.strftime('%d/%m/%Y') }}
+                                </div>
+                                {% endif %}
+                                <div class="task-actions">
+                                    <button class="btn btn-sm btn-outline-danger" data-task-id="{{ task.id }}" onclick="deleteTask(this.getAttribute('data-task-id'))">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-tasks">
+                        <div class="empty-illustration">
+                            <i class="fas fa-magic"></i>
+                        </div>
+                        <h4>Sua lista está vazia!</h4>
+                        <p>Que tal adicionar algumas tarefas para organizar seu dia de princesa?</p>
+                        <button class="btn princess-btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                            <i class="fas fa-plus"></i> Criar Primeira Tarefa
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para adicionar tarefa -->
+<div class="modal fade" id="addTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus"></i> Nova Tarefa de Princesa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_task') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-heading"></i> Título da Tarefa
+                            </label>
+                            <input type="text" class="form-control princess-input" name="title" 
+                                   placeholder="Ex: Estudar para a prova, Fazer exercícios..." required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-align-left"></i> Descrição (Opcional)
+                            </label>
+                            <textarea class="form-control princess-input" name="description" rows="4" 
+                                      placeholder="Descreva os detalhes da tarefa..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-flag"></i> Prioridade
+                            </label>
+                            <select class="form-select princess-input" name="priority">
+                                <option value="baixa">🟢 Baixa</option>
+                                <option value="media" selected>🟡 Média</option>
+                                <option value="alta">🔴 Alta</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-calendar"></i> Data de Vencimento
+                            </label>
+                            <input type="date" class="form-control princess-input" name="due_date">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn princess-btn-primary">
+                        <i class="fas fa-heart"></i> Adicionar Tarefa
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/tasks.js') }}"></script>
+{% endblock %}

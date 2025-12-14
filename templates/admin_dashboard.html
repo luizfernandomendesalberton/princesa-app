@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard do Administrador - Princesa{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<style>
+.admin-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 0;
+    margin-bottom: 30px;
+}
+
+.admin-title {
+    font-weight: 600;
+    margin: 0;
+}
+
+.admin-subtitle {
+    opacity: 0.9;
+    margin: 0;
+}
+
+.user-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.user-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.user-info h5 {
+    color: #2c3e50;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.user-meta {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.change-password-form {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.admin-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    color: white;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.admin-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+    color: white;
+}
+
+.logout-btn {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.logout-btn:hover {
+    background: linear-gradient(135deg, #c0392b, #a93226);
+    box-shadow: 0 3px 10px rgba(231, 76, 60, 0.3);
+}
+
+.no-users {
+    text-align: center;
+    color: #6c757d;
+    padding: 40px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.password-input {
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+    padding: 8px 12px;
+    transition: all 0.3s ease;
+}
+
+.password-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="admin-title">
+                    <i class="fas fa-shield-alt"></i> Painel do Administrador
+                </h1>
+                <p class="admin-subtitle">Gerencie usuários e senhas do sistema</p>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('admin_logout') }}" class="btn logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    {% if users %}
+        <div class="row">
+            <div class="col-12">
+                <h3 class="mb-4">
+                    <i class="fas fa-users"></i> Usuários Cadastrados
+                    <span class="badge bg-primary">{{ users|length }}</span>
+                </h3>
+            </div>
+        </div>
+        
+        <div class="row">
+            {% for user in users %}
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="user-card">
+                    <div class="user-info">
+                        <h5>
+                            <i class="fas fa-crown text-warning"></i> {{ user.name }}
+                        </h5>
+                        <div class="user-meta">
+                            <div><strong>Usuário:</strong> {{ user.username }}</div>
+                            <div><strong>ID:</strong> {{ user.id }}</div>
+                            <div><strong>Criado em:</strong> {{ user.created_at.strftime('%d/%m/%Y às %H:%M') if user.created_at else 'N/A' }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="change-password-form">
+                        <h6 class="mb-3">
+                            <i class="fas fa-key"></i> Alterar Senha
+                        </h6>
+                        <form method="POST" action="{{ url_for('admin_change_password') }}">
+                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                            <div class="input-group mb-2">
+                                <input type="password" 
+                                       class="form-control password-input" 
+                                       name="new_password" 
+                                       placeholder="Nova senha (mín. 6 caracteres)"
+                                       minlength="6"
+                                       required>
+                                <div class="input-group-append">
+                                    <button class="btn admin-btn" type="submit">
+                                        <i class="fas fa-save"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="no-users">
+            <i class="fas fa-users fa-3x mb-3 text-muted"></i>
+            <h4>Nenhum usuário cadastrado</h4>
+            <p>Ainda não há usuários registrados no sistema.</p>
+        </div>
+    {% endif %}
+    
+    <div class="row mt-4">
+        <div class="col-12 text-center">
+            <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar ao Login
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animação de entrada dos cards
+    const cards = document.querySelectorAll('.user-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // Confirmação antes de alterar senha
+    const forms = document.querySelectorAll('form[action*="change_password"]');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const passwordInput = this.querySelector('input[name="new_password"]');
+            const password = passwordInput.value;
+            
+            if (password.length < 6) {
+                e.preventDefault();
+                alert('A senha deve ter pelo menos 6 caracteres!');
+                passwordInput.focus();
+                return;
+            }
+            
+            const userName = this.closest('.user-card').querySelector('h5').textContent.trim();
+            if (!confirm(`Tem certeza que deseja alterar a senha de ${userName}?`)) {
+                e.preventDefault();
+            }
+        });
+    });
+    
+    // Auto-limpar campos após sucesso
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success') === 'password_changed') {
+        const inputs = document.querySelectorAll('input[name="new_password"]');
+        inputs.forEach(input => input.value = '');
+    }
+});
+</script>
+{% endblock %}
