@@ -6,8 +6,8 @@ set -o errexit
 pip install -r requirements.txt
 
 # Create database tables (will run on first deploy)
-cd back-end && python -c "
-import sever
-sever.init_db()
+python -c "
+import app
+app.init_db()
 print('✅ Database initialized successfully!')
 "

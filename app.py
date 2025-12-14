@@ -1,11 +1,26 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from werkzeug.security import generate_password_hash, check_password_hash
-import mysql.connector
+import psycopg2
+import psycopg2.extras
 from datetime import datetime, timedelta
 from functools import wraps
 
-app = Flask(__name__, template_folder='../templates', static_folder='../static')
+# Função helper para converter resultados do cursor em dicionários
+def cursor_to_dict(cursor, row):
+    """Converte uma linha do cursor PostgreSQL em dicionário"""
+    if row is None:
+        return None
+    return dict(zip([desc[0] for desc in cursor.description], row))
+
+def cursor_to_dict_list(cursor, rows):
+    """Converte múltiplas linhas do cursor PostgreSQL em lista de dicionários"""
+    if not rows:
+        return []
+    columns = [desc[0] for desc in cursor.description]
+    return [dict(zip(columns, row)) for row in rows]
+
+app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # Configuração para produção
 app.secret_key = os.environ.get('SECRET_KEY', 'princesa_ana_paula_2025_secret_key_muito_segura')
@@ -26,33 +41,22 @@ def format_time(time_value):
     else:
         return str(time_value)
 
-# Configuração do banco de dados para produção
-def get_db_config():
-    if os.environ.get('DATABASE_URL'):
-        # Produção (Render/Railway com MySQL)
-        return {
-            'host': os.environ.get('DB_HOST', 'localhost'),
-            'user': os.environ.get('DB_USER', 'root'),
-            'password': os.environ.get('DB_PASSWORD', ''),
-            'database': os.environ.get('DB_NAME', 'princesa_db'),
-            'port': int(os.environ.get('DB_PORT', 3306))
-        }
-    else:
-        # Desenvolvimento local
-        return {
-            'host': 'localhost',
-            'user': 'root',
-            'password': 'ecalfma',
-            'database': 'princesa_db'
-        }
-
 def get_db_connection():
     """Cria conexão com o banco de dados"""
     try:
-        db_config = get_db_config()
-        connection = mysql.connector.connect(**db_config)
+        if os.environ.get('DATABASE_URL'):
+            # Produção (PostgreSQL no Render)
+            connection = psycopg2.connect(os.environ['DATABASE_URL'])
+        else:
+            # Desenvolvimento local (pode usar SQLite ou PostgreSQL local)
+            connection = psycopg2.connect(
+                host='localhost',
+                database='princesa_db',
+                user='postgres', 
+                password='sua_senha_local'
+            )
         return connection
-    except mysql.connector.Error as err:
+    except psycopg2.Error as err:
         print(f"Erro ao conectar com o banco: {err}")
         return None
 
@@ -62,15 +66,10 @@ def init_db():
     if connection:
         cursor = connection.cursor()
         
-        # Criar database se não existir (apenas em desenvolvimento)
-        if not os.environ.get('DATABASE_URL'):
-            cursor.execute("CREATE DATABASE IF NOT EXISTS princesa_db")
-            cursor.execute("USE princesa_db")
-        
-        # Tabela de usuários
+        # Tabela de usuários (PostgreSQL syntax)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 username VARCHAR(50) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
                 name VARCHAR(100) NOT NULL,
@@ -81,45 +80,71 @@ def init_db():
         # Tabela de tarefas
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS tasks (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT,
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
                 title VARCHAR(200) NOT NULL,
                 description TEXT,
                 completed BOOLEAN DEFAULT FALSE,
-                priority ENUM('baixa', 'media', 'alta') DEFAULT 'media',
+                priority VARCHAR(10) DEFAULT 'media' CHECK (priority IN ('baixa', 'media', 'alta')),
                 due_date DATE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
         # Tabela de rotinas
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS routines (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT,
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
                 title VARCHAR(200) NOT NULL,
                 description TEXT,
                 time_schedule TIME,
-                days_of_week SET('segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'),
+                days_of_week TEXT,
                 active BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
         # Tabela de execução de rotinas
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS routine_executions (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                routine_id INT,
+                id SERIAL PRIMARY KEY,
+                routine_id INTEGER REFERENCES routines(id) ON DELETE CASCADE,
                 executed_date DATE,
                 executed_time TIME,
-                notes TEXT,
-                FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE CASCADE
+                notes TEXT
             )
         """)
+        
+        # Criar trigger para updated_at (PostgreSQL)
+        cursor.execute("""
+            CREATE OR REPLACE FUNCTION update_updated_at_column()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = CURRENT_TIMESTAMP;
+                RETURN NEW;
+            END;
+            $$ language 'plpgsql';
+        """)
+        
+        cursor.execute("""
+            DROP TRIGGER IF EXISTS update_tasks_updated_at ON tasks;
+            CREATE TRIGGER update_tasks_updated_at 
+                BEFORE UPDATE ON tasks 
+                FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+        """)
+        
+        # Criar usuário admin se não existir
+        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
+        admin_exists = cursor.fetchone()[0] > 0
+        
+        if not admin_exists:
+            admin_password = generate_password_hash('admin123')
+            cursor.execute("""
+                INSERT INTO users (username, password_hash, name) 
+                VALUES ('admin', %s, 'Administrador')
+            """, (admin_password,))
         
         # Criar usuário padrão apenas se não existir
         cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'ana_paula'")
@@ -130,10 +155,11 @@ def init_db():
             cursor.execute("""
                 INSERT INTO users (username, password_hash, name) 
                 VALUES ('ana_paula', %s, 'Ana Paula Schlickmann Michels')
+                RETURNING id
             """, (hashed_password,))
             
             # Inserir dados de exemplo apenas para usuário novo
-            user_id = cursor.lastrowid
+            user_id = cursor.fetchone()[0]
             
             # Tarefas de exemplo
             tasks_example = [
@@ -198,11 +224,17 @@ def login():
         
         connection = get_db_connection()
         if connection:
-            cursor = connection.cursor(dictionary=True)
-            cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-            user = cursor.fetchone()
+            cursor = connection.cursor()
+            cursor.execute("SELECT id, username, name, password_hash FROM users WHERE username = %s", (username,))
+            user_row = cursor.fetchone()
             
-            if user and check_password_hash(user['password_hash'], password):
+            if user_row and check_password_hash(user_row[3], password):
+                user = {
+                    'id': user_row[0],
+                    'username': user_row[1], 
+                    'name': user_row[2],
+                    'password_hash': user_row[3]
+                }
                 session['user_id'] = user['id']
                 session['username'] = user['username']
                 session['name'] = user['name']
@@ -232,7 +264,7 @@ def dashboard():
     routines_today = []
     
     if connection:
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
         
         # Buscar tarefas pendentes
         cursor.execute("""
@@ -241,7 +273,7 @@ def dashboard():
             ORDER BY due_date ASC, priority DESC
             LIMIT 5
         """, (session['user_id'],))
-        tasks_pending = cursor.fetchall()
+        tasks_pending = cursor_to_dict_list(cursor, cursor.fetchall())
         
         # Buscar rotinas do dia
         today_name = datetime.now().strftime('%A').lower()
@@ -259,10 +291,10 @@ def dashboard():
         cursor.execute("""
             SELECT * FROM routines 
             WHERE user_id = %s AND active = TRUE 
-            AND FIND_IN_SET(%s, days_of_week) > 0
+            AND days_of_week LIKE %s
             ORDER BY time_schedule ASC
-        """, (session['user_id'], today_pt))
-        routines_today = cursor.fetchall()
+        """, (session['user_id'], f'%{today_pt}%'))
+        today_routines = cursor_to_dict_list(cursor, cursor.fetchall())
         
         cursor.close()
         connection.close()
@@ -272,7 +304,221 @@ def dashboard():
                          routines=routines_today,
                          user_name=session.get('name', ''))
 
-# [Resto das rotas permanece igual - apenas mudando get_db_connection()]
+@app.route('/tasks')
+@login_required
+def tasks():
+    connection = get_db_connection()
+    tasks = []
+    
+    if connection:
+        cursor = connection.cursor()
+        cursor.execute("""
+            SELECT * FROM tasks 
+            WHERE user_id = %s 
+            ORDER BY created_at DESC
+        """, (session['user_id'],))
+        tasks = cursor_to_dict_list(cursor, cursor.fetchall())
+        cursor.close()
+        connection.close()
+    
+    return render_template('tasks.html', tasks=tasks)
+
+@app.route('/add_task', methods=['POST'])
+@login_required
+def add_task():
+    title = request.form.get('title')
+    description = request.form.get('description', '')
+    priority = request.form.get('priority', 'media')
+    due_date = request.form.get('due_date')
+    
+    if not title:
+        flash('Título da tarefa é obrigatório!', 'error')
+        return redirect(url_for('tasks'))
+    
+    connection = get_db_connection()
+    if connection:
+        cursor = connection.cursor()
+        cursor.execute("""
+            INSERT INTO tasks (user_id, title, description, priority, due_date)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (session['user_id'], title, description, priority, due_date or None))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        flash('Tarefa adicionada com sucesso! ✨', 'success')
+    
+    return redirect(url_for('tasks'))
+
+@app.route('/toggle_task/<int:task_id>')
+@login_required
+def toggle_task(task_id):
+    connection = get_db_connection()
+    if connection:
+        cursor = connection.cursor()
+        cursor.execute("""
+            UPDATE tasks SET completed = NOT completed 
+            WHERE id = %s AND user_id = %s
+        """, (task_id, session['user_id']))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        flash('Status da tarefa atualizado! 👑', 'success')
+    
+    return redirect(url_for('tasks'))
+
+@app.route('/delete_task/<int:task_id>')
+@login_required
+def delete_task(task_id):
+    connection = get_db_connection()
+    if connection:
+        cursor = connection.cursor()
+        cursor.execute("DELETE FROM tasks WHERE id = %s AND user_id = %s", (task_id, session['user_id']))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        flash('Tarefa removida! 🗑️', 'success')
+    
+    return redirect(url_for('tasks'))
+
+@app.route('/routines')
+@login_required
+def routines():
+    connection = get_db_connection()
+    routines = []
+    
+    if connection:
+        cursor = connection.cursor()
+        cursor.execute("""
+            SELECT * FROM routines 
+            WHERE user_id = %s 
+            ORDER BY time_schedule ASC
+        """, (session['user_id'],))
+        routines = cursor_to_dict_list(cursor, cursor.fetchall())
+        cursor.close()
+        connection.close()
+    
+    return render_template('routines.html', routines=routines)
+
+@app.route('/add_routine', methods=['POST'])
+@login_required
+def add_routine():
+    title = request.form.get('title')
+    description = request.form.get('description', '')
+    time_schedule = request.form.get('time_schedule')
+    days_of_week = ','.join(request.form.getlist('days_of_week'))
+    
+    if not title:
+        flash('Título da rotina é obrigatório!', 'error')
+        return redirect(url_for('routines'))
+    
+    connection = get_db_connection()
+    if connection:
+        cursor = connection.cursor()
+        cursor.execute("""
+            INSERT INTO routines (user_id, title, description, time_schedule, days_of_week)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (session['user_id'], title, description, time_schedule or None, days_of_week))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        flash('Rotina adicionada com sucesso! 📅', 'success')
+    
+    return redirect(url_for('routines'))
+
+@app.route('/toggle_routine/<int:routine_id>')
+@login_required
+def toggle_routine(routine_id):
+    connection = get_db_connection()
+    if connection:
+        cursor = connection.cursor()
+        cursor.execute("""
+            UPDATE routines SET active = NOT active 
+            WHERE id = %s AND user_id = %s
+        """, (routine_id, session['user_id']))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        flash('Status da rotina atualizado! ⚡', 'success')
+    
+    return redirect(url_for('routines'))
+
+@app.route('/delete_routine/<int:routine_id>')
+@login_required
+def delete_routine(routine_id):
+    connection = get_db_connection()
+    if connection:
+        cursor = connection.cursor()
+        cursor.execute("DELETE FROM routines WHERE id = %s AND user_id = %s", (routine_id, session['user_id']))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        flash('Rotina removida! 🗑️', 'success')
+    
+    return redirect(url_for('routines'))
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        admin_password = request.form['admin_password']
+        
+        if admin_password == 'admin2025':
+            session['is_admin'] = True
+            flash('Login de administrador realizado com sucesso!', 'success')
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash('Senha de administrador incorreta!', 'error')
+    
+    return render_template('admin_login.html')
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if 'is_admin' not in session:
+        flash('Acesso negado! Faça login como administrador.', 'error')
+        return redirect(url_for('admin_login'))
+    
+    connection = get_db_connection()
+    users = []
+    
+    if connection:
+        cursor = connection.cursor()
+        cursor.execute("SELECT id, username, name, created_at FROM users ORDER BY created_at DESC")
+        users = cursor_to_dict_list(cursor, cursor.fetchall())
+        cursor.close()
+        connection.close()
+    
+    return render_template('admin_dashboard.html', users=users)
+
+@app.route('/admin/change_password', methods=['POST'])
+def admin_change_password():
+    if 'is_admin' not in session:
+        return redirect(url_for('admin_login'))
+    
+    user_id = request.form['user_id']
+    new_password = request.form['new_password']
+    
+    if not new_password or len(new_password) < 6:
+        flash('A senha deve ter pelo menos 6 caracteres!', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    connection = get_db_connection()
+    if connection:
+        cursor = connection.cursor()
+        hashed_password = generate_password_hash(new_password)
+        cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hashed_password, user_id))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        flash('Senha alterada com sucesso!', 'success')
+    else:
+        flash('Erro ao conectar com o banco de dados!', 'error')
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('is_admin', None)
+    flash('Logout de administrador realizado!', 'info')
+    return redirect(url_for('login'))
 
 # Rotas PWA
 @app.route('/manifest.json')
