@@ -46,15 +46,34 @@ def get_db_connection():
     try:
         if os.environ.get('DATABASE_URL'):
             # Produção (PostgreSQL no Render)
-            database_url = os.environ['DATABASE_URL']
+            database_url = os.environ['DATABASE_URL'].strip()
+            print(f"🔍 DATABASE_URL original: {database_url[:50]}...")
+            
             # Fix para URLs do Render que podem usar postgres:// ao invés de postgresql://
             if database_url.startswith('postgres://'):
                 database_url = database_url.replace('postgres://', 'postgresql://', 1)
+                print(f"🔄 URL corrigida para postgresql://")
             
-            connection = psycopg2.connect(
-                database_url,
-                sslmode='require'  # Render requer SSL
-            )
+            # Método alternativo: parse manual da URL
+            try:
+                from urllib.parse import urlparse
+                parsed = urlparse(database_url)
+                
+                connection = psycopg2.connect(
+                    host=parsed.hostname,
+                    port=parsed.port or 5432,
+                    database=parsed.path[1:] if parsed.path.startswith('/') else parsed.path,
+                    user=parsed.username,
+                    password=parsed.password,
+                    sslmode='require'
+                )
+                print(f"✅ Conectado via parsing manual da URL")
+            except Exception as parse_error:
+                print(f"❌ Erro no parsing manual: {parse_error}")
+                # Fallback: conectar diretamente com a URL
+                connection = psycopg2.connect(database_url)
+                print(f"✅ Conectado via URL direta")
+            
         else:
             # Desenvolvimento local (PostgreSQL local)
             connection = psycopg2.connect(
@@ -67,7 +86,9 @@ def get_db_connection():
         return connection
     except psycopg2.Error as err:
         print(f"❌ Erro PostgreSQL: {err}")
-        print(f"DATABASE_URL presente: {bool(os.environ.get('DATABASE_URL'))}")
+        if os.environ.get('DATABASE_URL'):
+            url_sample = os.environ['DATABASE_URL'][:30] + "..." if len(os.environ['DATABASE_URL']) > 30 else os.environ['DATABASE_URL']
+            print(f"🔍 DATABASE_URL sample: {url_sample}")
         return None
     except Exception as e:
         print(f"❌ Erro geral na conexão: {e}")
@@ -233,18 +254,41 @@ def login_required(f):
 def health_check():
     """Rota para verificar saúde da aplicação"""
     try:
+        # Informações do ambiente
+        env_info = {
+            'database_url_present': bool(os.environ.get('DATABASE_URL')),
+            'database_url_length': len(os.environ.get('DATABASE_URL', '')),
+            'database_url_start': os.environ.get('DATABASE_URL', '')[:20] + "..." if os.environ.get('DATABASE_URL') else 'N/A'
+        }
+        
         # Testar conexão com banco
         connection = get_db_connection()
         if connection:
             cursor = connection.cursor()
-            cursor.execute("SELECT 1")
+            cursor.execute("SELECT version()")
+            db_version = cursor.fetchone()[0]
             cursor.close()
             connection.close()
-            return "OK - Banco conectado", 200
+            
+            return {
+                "status": "OK", 
+                "database": "conectado",
+                "db_version": db_version,
+                "env_info": env_info
+            }, 200
         else:
-            return "ERRO - Falha na conexão com banco", 500
+            return {
+                "status": "ERRO", 
+                "database": "desconectado",
+                "env_info": env_info,
+                "message": "Falha na conexão com banco"
+            }, 500
     except Exception as e:
-        return f"ERRO - {str(e)}", 500
+        return {
+            "status": "ERRO",
+            "error": str(e),
+            "env_info": env_info if 'env_info' in locals() else {}
+        }, 500
 
 @app.route('/')
 def index():
