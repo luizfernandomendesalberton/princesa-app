@@ -84,7 +84,7 @@ def ensure_database():
             print(f"❌ Erro na inicialização do banco: {e}")
             app.db_initialized = True  # Evitar loop infinito
 
-# Filtro customizado para formatar timedelta
+# Filtros customizados para templates
 @app.template_filter('format_time')
 def format_time(time_value):
     """Formata timedelta ou time para HH:MM"""
@@ -99,6 +99,34 @@ def format_time(time_value):
         return time_value.strftime('%H:%M')
     else:
         return str(time_value)
+
+@app.template_filter('format_date')
+def format_date(date_value):
+    """Formata data compatível com SQLite (string) e PostgreSQL (datetime)"""
+    if not date_value:
+        return 'Sem data'
+    
+    # Se já é string (SQLite), tentar converter para datetime
+    if isinstance(date_value, str):
+        try:
+            from datetime import datetime
+            # Tentar diferentes formatos de data
+            for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%Y-%m-%d %H:%M:%S']:
+                try:
+                    date_obj = datetime.strptime(date_value, fmt)
+                    return date_obj.strftime('%d/%m/%Y')
+                except ValueError:
+                    continue
+            # Se não conseguiu converter, retorna a string original
+            return date_value
+        except:
+            return date_value
+    
+    # Se é datetime (PostgreSQL)
+    if hasattr(date_value, 'strftime'):
+        return date_value.strftime('%d/%m/%Y')
+    
+    return str(date_value)
 
 def get_db_connection():
     """Cria conexão com o banco de dados com múltiplas estratégias incluindo SQLite fallback"""

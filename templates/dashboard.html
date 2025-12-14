@@ -38,7 +38,7 @@
                                 {% endif %}
                                 {% if task.due_date %}
                                 <small class="text-muted">
-                                    <i class="fas fa-calendar"></i> {{ task.due_date.strftime('%d/%m/%Y') }}
+                                    <i class="fas fa-calendar"></i> {{ task.due_date | format_date }}
                                 </small>
                                 {% endif %}
                             </div>

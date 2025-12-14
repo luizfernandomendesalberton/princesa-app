@@ -49,7 +49,7 @@
                                 {% if task.due_date %}
                                 <div class="task-date">
                                     <i class="fas fa-calendar"></i>
-                                    {{ task.due_date.strftime('%d/%m/%Y') }}
+                                    {{ task.due_date | format_date }}
                                 </div>
                                 {% endif %}
                                 <div class="task-actions">
