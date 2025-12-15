@@ -1431,6 +1431,131 @@ def service_worker():
 def offline():
     return render_template('offline.html')
 
+@app.route('/api/check_notifications')
+@login_required
+def check_notifications():
+    """Verifica rotinas e tarefas que precisam de notificação"""
+    from datetime import datetime, time as dt_time
+    
+    connection = get_db_connection()
+    notifications = []
+    
+    if connection:
+        cursor = connection.cursor()
+        placeholder = get_param_placeholder()
+        
+        # Verificar rotinas do dia atual
+        today_name = datetime.now().strftime('%A').lower()
+        day_mapping = {
+            'monday': 'segunda',
+            'tuesday': 'terca', 
+            'wednesday': 'quarta',
+            'thursday': 'quinta',
+            'friday': 'sexta',
+            'saturday': 'sabado',
+            'sunday': 'domingo'
+        }
+        today_pt = day_mapping.get(today_name, 'segunda')
+        current_time = datetime.now().time()
+        
+        # Buscar rotinas ativas para hoje
+        cursor.execute(f"""
+            SELECT * FROM routines 
+            WHERE user_id = {placeholder} AND active = {'1' if USING_SQLITE else 'TRUE'} 
+            AND days_of_week LIKE {placeholder}
+        """, (session['user_id'], f'%{today_pt}%'))
+        
+        routines = cursor_to_dict_list(cursor, cursor.fetchall())
+        
+        for routine in routines:
+            if routine['time_schedule']:
+                try:
+                    # Converter horário da rotina
+                    if isinstance(routine['time_schedule'], str):
+                        routine_time = datetime.strptime(routine['time_schedule'], '%H:%M').time()
+                    else:
+                        routine_time = routine['time_schedule']
+                    
+                    # Verificar se está na hora (com margem de 1 minuto)
+                    current_minutes = current_time.hour * 60 + current_time.minute
+                    routine_minutes = routine_time.hour * 60 + routine_time.minute
+                    
+                    if abs(current_minutes - routine_minutes) <= 1:
+                        notifications.append({
+                            'id': f"routine_{routine['id']}",
+                            'type': 'routine',
+                            'title': '🌸 Hora da Rotina!',
+                            'message': f"{routine['title']}",
+                            'description': routine.get('description', ''),
+                            'time': routine['time_schedule'],
+                            'priority': 'normal'
+                        })
+                except Exception as e:
+                    print(f"Erro ao processar rotina {routine['id']}: {e}")
+        
+        # Verificar tarefas com prazo próximo (hoje e amanhã)
+        from datetime import date, timedelta
+        today = date.today()
+        tomorrow = today + timedelta(days=1)
+        
+        cursor.execute(f"""
+            SELECT * FROM tasks 
+            WHERE user_id = {placeholder} AND completed = {'0' if USING_SQLITE else 'FALSE'}
+            AND due_date IN ({placeholder}, {placeholder})
+            ORDER BY due_date ASC, priority DESC
+        """, (session['user_id'], today.strftime('%Y-%m-%d'), tomorrow.strftime('%Y-%m-%d')))
+        
+        tasks = cursor_to_dict_list(cursor, cursor.fetchall())
+        
+        for task in tasks:
+            if task['due_date']:
+                task_date = task['due_date']
+                if isinstance(task_date, str):
+                    task_date = datetime.strptime(task_date, '%Y-%m-%d').date()
+                
+                priority_icons = {'alta': '🔴', 'media': '🟡', 'baixa': '🟢'}
+                priority_icon = priority_icons.get(task.get('priority', 'media'), '🟡')
+                
+                if task_date == today:
+                    notifications.append({
+                        'id': f"task_{task['id']}",
+                        'type': 'task',
+                        'title': f'{priority_icon} Tarefa para Hoje!',
+                        'message': f"{task['title']}",
+                        'description': task.get('description', ''),
+                        'priority': task.get('priority', 'media'),
+                        'due_date': task_date.strftime('%d/%m/%Y')
+                    })
+                elif task_date == tomorrow:
+                    notifications.append({
+                        'id': f"task_{task['id']}",
+                        'type': 'task',
+                        'title': f'{priority_icon} Tarefa para Amanhã!',
+                        'message': f"{task['title']}",
+                        'description': task.get('description', ''),
+                        'priority': task.get('priority', 'media'),
+                        'due_date': task_date.strftime('%d/%m/%Y')
+                    })
+        
+        cursor.close()
+        connection.close()
+    
+    return jsonify({
+        'notifications': notifications,
+        'count': len(notifications),
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/api/mark_notification_seen/<notification_id>')
+@login_required
+def mark_notification_seen(notification_id):
+    """Marca uma notificação como vista"""
+    log_security_event('NOTIFICATION_SEEN', 
+                     user_id=session['user_id'], 
+                     details=f'Notification ID: {notification_id}')
+    
+    return jsonify({'status': 'success'})
+
 if __name__ == '__main__':
     print("Iniciando aplicação Princesa...")
     # Inicializar DB em desenvolvimento

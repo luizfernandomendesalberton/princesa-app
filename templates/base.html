@@ -61,6 +61,11 @@
                     </ul>
                     
                     <div class="navbar-nav">
+                        <button class="nav-link btn btn-link text-white me-3" id="notificationToggle" onclick="toggleNotifications()" title="Ativar/Desativar Notificações">
+                            <i class="fas fa-bell" id="notificationIcon"></i>
+                            <span class="notification-status" id="notificationStatus">🔔</span>
+                        </button>
+                        
                         <div class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle princess-user" href="#" role="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-user-circle"></i> {{ session.name }}
@@ -125,7 +130,296 @@
         if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
             console.log('🌸 PWA: Rodando como aplicativo instalado!');
             document.body.classList.add('pwa-mode');
+        }        
+        // Sistema de Notificações da Princesa
+        class PrincessNotifications {
+            constructor() {
+                this.permission = 'default';
+                this.checkInterval = null;
+                this.seenNotifications = new Set();
+                this.isActive = false;
+                this.init();
+            }
+            
+            async init() {
+                // Verificar suporte a notificações
+                if (!('Notification' in window)) {
+                    console.log('🔔 Notificações não suportadas neste navegador');
+                    return;
+                }
+                
+                this.permission = Notification.permission;
+                
+                // Solicitar permissão se necessário
+                if (this.permission === 'default') {
+                    await this.requestPermission();
+                }
+                
+                if (this.permission === 'granted') {
+                    this.startChecking();
+                    this.isActive = true;
+                    console.log('🔔 Sistema de notificações ativado!');
+                    updateNotificationButton(true);
+                }
+            }
+            
+            async requestPermission() {
+                try {
+                    this.permission = await Notification.requestPermission();
+                    if (this.permission === 'granted') {
+                        this.showWelcomeNotification();
+                    }
+                } catch (error) {
+                    console.error('Erro ao solicitar permissão:', error);
+                }
+            }
+            
+            showWelcomeNotification() {
+                new Notification('👑 Princesa App', {
+                    body: 'Notificações ativadas! Você será avisada sobre suas rotinas e tarefas.',
+                    icon: '/static/icons/icon-192x192.png',
+                    badge: '/static/icons/icon-72x72.png'
+                });
+            }
+            
+            startChecking() {
+                if (this.checkInterval) return;
+                
+                // Verificar a cada 30 segundos
+                this.checkInterval = setInterval(() => {
+                    this.checkForNotifications();
+                }, 30000);
+                
+                // Verificar imediatamente
+                this.checkForNotifications();
+                this.isActive = true;
+            }
+            
+            stopChecking() {
+                if (this.checkInterval) {
+                    clearInterval(this.checkInterval);
+                    this.checkInterval = null;
+                }
+                this.isActive = false;
+            }
+            
+            async checkForNotifications() {
+                try {
+                    const response = await fetch('/api/check_notifications');
+                    const data = await response.json();
+                    
+                    if (data.notifications && data.notifications.length > 0) {
+                        data.notifications.forEach(notification => {
+                            if (!this.seenNotifications.has(notification.id)) {
+                                this.showNotification(notification);
+                                this.seenNotifications.add(notification.id);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Erro ao verificar notificações:', error);
+                }
+            }
+            
+            showNotification(notif) {
+                if (this.permission !== 'granted' || !this.isActive) return;
+                
+                const options = {
+                    body: notif.message,
+                    icon: '/static/icons/icon-192x192.png',
+                    badge: '/static/icons/icon-72x72.png',
+                    tag: notif.id,
+                    requireInteraction: true,
+                    data: notif
+                };
+                
+                if (notif.type === 'routine') {
+                    options.body += `\n⏰ ${notif.time}`;
+                    if (notif.description) {
+                        options.body += `\n${notif.description}`;
+                    }
+                } else if (notif.type === 'task') {
+                    options.body += `\n📅 Prazo: ${notif.due_date}`;
+                    if (notif.description) {
+                        options.body += `\n${notif.description}`;
+                    }
+                }
+                
+                const notification = new Notification(notif.title, options);
+                
+                notification.onclick = () => {
+                    window.focus();
+                    if (notif.type === 'routine') {
+                        window.location.href = '/routines';
+                    } else if (notif.type === 'task') {
+                        window.location.href = '/tasks';
+                    }
+                    notification.close();
+                    
+                    // Marcar como vista
+                    fetch(`/api/mark_notification_seen/${notif.id}`);
+                };
+                
+                // Auto-fechar após 10 segundos
+                setTimeout(() => {
+                    notification.close();
+                }, 10000);
+            }
+            
+            toggle() {
+                if (this.isActive) {
+                    this.stopChecking();
+                    return false;
+                } else {
+                    this.startChecking();
+                    return true;
+                }
+            }
         }
+        
+        // Inicializar sistema de notificações
+        window.princessNotifications = new PrincessNotifications();        
+        // Sistema de Notificações da Princesa
+        class PrincessNotifications {
+            constructor() {
+                this.permission = 'default';
+                this.checkInterval = null;
+                this.seenNotifications = new Set();
+                this.init();
+            }
+            
+            async init() {
+                // Verificar suporte a notificações
+                if (!('Notification' in window)) {
+                    console.log('🌸 Notificações não suportadas neste navegador');
+                    return;
+                }
+                
+                this.permission = Notification.permission;
+                
+                // Solicitar permissão se necessário
+                if (this.permission === 'default') {
+                    await this.requestPermission();
+                }
+                
+                if (this.permission === 'granted') {
+                    this.startChecking();
+                    console.log('🌸 Sistema de notificações ativado!');
+                }
+            }
+            
+            async requestPermission() {
+                try {
+                    this.permission = await Notification.requestPermission();
+                    if (this.permission === 'granted') {
+                        this.showWelcomeNotification();
+                    }
+                } catch (error) {
+                    console.error('Erro ao solicitar permissão:', error);
+                }
+            }
+            
+            showWelcomeNotification() {
+                new Notification('🌸 Princesa App', {
+                    body: 'Notificações ativadas! Você será avisada sobre suas rotinas e tarefas.',
+                    icon: '/static/icons/icon-192x192.png',
+                    badge: '/static/icons/icon-72x72.png'
+                });
+            }
+            
+            startChecking() {
+                // Verificar a cada 30 segundos
+                this.checkInterval = setInterval(() => {
+                    this.checkForNotifications();
+                }, 30000);
+                
+                // Verificar imediatamente
+                this.checkForNotifications();
+            }
+            
+            stopChecking() {
+                if (this.checkInterval) {
+                    clearInterval(this.checkInterval);
+                    this.checkInterval = null;
+                }
+            }
+            
+            async checkForNotifications() {
+                try {
+                    const response = await fetch('/api/check_notifications');
+                    const data = await response.json();
+                    
+                    if (data.notifications && data.notifications.length > 0) {
+                        data.notifications.forEach(notification => {
+                            if (!this.seenNotifications.has(notification.id)) {
+                                this.showNotification(notification);
+                                this.seenNotifications.add(notification.id);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Erro ao verificar notificações:', error);
+                }
+            }
+            
+            showNotification(notif) {
+                if (this.permission !== 'granted') return;
+                
+                const options = {
+                    body: notif.message,
+                    icon: '/static/icons/icon-192x192.png',
+                    badge: '/static/icons/icon-72x72.png',
+                    tag: notif.id,
+                    requireInteraction: true,
+                    data: notif
+                };
+                
+                if (notif.type === 'routine') {
+                    options.body += `\n⏰ ${notif.time}`;
+                    if (notif.description) {
+                        options.body += `\n${notif.description}`;
+                    }
+                } else if (notif.type === 'task') {
+                    options.body += `\n📅 Prazo: ${notif.due_date}`;
+                    if (notif.description) {
+                        options.body += `\n${notif.description}`;
+                    }
+                }
+                
+                const notification = new Notification(notif.title, options);
+                
+                notification.onclick = () => {
+                    window.focus();
+                    if (notif.type === 'routine') {
+                        window.location.href = '/routines';
+                    } else if (notif.type === 'task') {
+                        window.location.href = '/tasks';
+                    }
+                    notification.close();
+                    
+                    // Marcar como vista
+                    fetch(`/api/mark_notification_seen/${notif.id}`);
+                };
+                
+                // Auto-fechar após 10 segundos
+                setTimeout(() => {
+                    notification.close();
+                }, 10000);
+            }
+            
+            toggle() {
+                if (this.checkInterval) {
+                    this.stopChecking();
+                    return false;
+                } else {
+                    this.startChecking();
+                    return true;
+                }
+            }
+        }
+        
+        // Inicializar sistema de notificações
+        window.princessNotifications = new PrincessNotifications();
 
         // Prompt de instalação PWA
         let deferredPrompt;
@@ -174,6 +468,78 @@
                 document.body.appendChild(banner);
             }
         });
+        
+        // Função para toggle de notificações
+        function toggleNotifications() {
+            if (window.princessNotifications) {
+                const isActive = window.princessNotifications.toggle();
+                updateNotificationButton(isActive);
+                
+                if (isActive) {
+                    showToast('🔔 Notificações ativadas!', 'success');
+                } else {
+                    showToast('🔕 Notificações desativadas', 'info');
+                }
+            }
+        }
+        
+        function updateNotificationButton(isActive) {
+            const icon = document.getElementById('notificationIcon');
+            const status = document.getElementById('notificationStatus');
+            
+            if (isActive) {
+                icon.className = 'fas fa-bell';
+                status.textContent = '🔔';
+                status.className = 'notification-status active';
+            } else {
+                icon.className = 'fas fa-bell-slash';
+                status.textContent = '🔕';
+                status.className = 'notification-status inactive';
+            }
+        }
+        
+        function showToast(message, type = 'info') {
+            // Criar toast notification
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type} toast-notification`;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 10000;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: slideIn 0.3s ease-out;
+            `;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            // Remover após 3 segundos
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
+        // Adicionar CSS para animações dos toasts
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
     
     {% block scripts %}{% endblock %}
