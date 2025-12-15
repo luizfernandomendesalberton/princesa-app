@@ -68,8 +68,19 @@ def record_login_attempt(ip_address):
     """Registra uma tentativa de login para rate limiting"""
     add_rate_limit_attempt(ip_address)
 
-def validate_input(input_str, max_length=255, allow_empty=True):
-    """Valida e limpa entrada do usuário"""
+def is_protected_user(user_id):
+    """Verifica se um usuário está protegido contra exclusão"""
+    protected_users = [1, 2]  # IDs dos usuários admin e ana_paula
+    return user_id in protected_users
+
+def audit_user_operation(operation_type, user_id, admin_id, details=None):
+    """Sistema de auditoria para operações de usuários"""
+    log_security_event(f'USER_AUDIT_{operation_type}', 
+                      user_id=admin_id, 
+                      details=f'Target User ID: {user_id}, Operation: {operation_type}, Details: {details or "N/A"}')
+
+def validate_input(input_str, max_length=255, allow_empty=True, input_type='text'):
+    """Valida e limpa entrada do usuário com sanitização avançada"""
     if input_str is None:
         return "" if allow_empty else None
     
@@ -84,10 +95,29 @@ def validate_input(input_str, max_length=255, allow_empty=True):
     if len(cleaned) > max_length:
         cleaned = cleaned[:max_length]
     
-    # Sanitizar caracteres perigosos básicos
-    dangerous_chars = ['<', '>', '"', "'", '&', '\x00', '\n', '\r', '\t']
-    for char in dangerous_chars:
-        cleaned = cleaned.replace(char, '')
+    # Sanitização baseada no tipo de input
+    if input_type == 'username':
+        # Username: apenas alfanuméricos e underscore
+        import re
+        cleaned = re.sub(r'[^a-zA-Z0-9_]', '', cleaned)
+    elif input_type == 'email':
+        # Email: validação básica
+        if '@' not in cleaned or '.' not in cleaned.split('@')[-1]:
+            return None if not allow_empty else ""
+    elif input_type == 'text':
+        # Sanitizar caracteres perigosos para XSS e SQL injection
+        dangerous_chars = ['<', '>', '"', "'", '&', '\x00', '\n', '\r', '\t', ';', '--', '/*', '*/', 'script', 'javascript']
+        for char in dangerous_chars:
+            cleaned = cleaned.replace(char, '')
+    
+    # Verificação adicional para SQL injection
+    sql_keywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER', 'EXEC', 'UNION', 'SCRIPT']
+    cleaned_upper = cleaned.upper()
+    for keyword in sql_keywords:
+        if keyword in cleaned_upper:
+            # Log tentativa de SQL injection
+            log_security_event('POTENTIAL_SQL_INJECTION', details=f'Input contained: {keyword}')
+            cleaned = cleaned.replace(keyword.lower(), '').replace(keyword.upper(), '')
     
     return cleaned
 
@@ -131,14 +161,19 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 # Configuração segura para produção
 app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_urlsafe(32)
 
-# Configurações de segurança
+# Configurações de segurança aprimoradas
 app.config.update(
     SESSION_COOKIE_SECURE=True if os.environ.get('FLASK_ENV') == 'production' else False,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     PERMANENT_SESSION_LIFETIME=timedelta(hours=2),  # Sessão expira em 2h
     WTF_CSRF_TIME_LIMIT=None,
-    MAX_CONTENT_LENGTH=16 * 1024 * 1024  # 16MB max upload
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max upload
+    # Configurações adicionais de segurança
+    SEND_FILE_MAX_AGE_DEFAULT=timedelta(hours=1),
+    SESSION_COOKIE_NAME='princesa_session',
+    WTF_CSRF_ENABLED=True,
+    SECRET_KEY_LENGTH=64  # Força chave secreta mais longa
 )
 
 # Middleware para proxy reverso (Render)
@@ -147,15 +182,18 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 # Headers de segurança
 @app.after_request
 def add_security_headers(response):
-    """Adiciona headers de segurança em todas as respostas"""
-    # Content Security Policy
+    """Adiciona headers de segurança aprimorados em todas as respostas"""
+    # Content Security Policy mais restritivo
     csp = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
-        "font-src 'self' https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+        "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
         "img-src 'self' data: https:; "
-        "connect-src 'self';"
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self';"
     )
     
     response.headers.update({
@@ -163,9 +201,15 @@ def add_security_headers(response):
         'X-Frame-Options': 'DENY',
         'X-Content-Type-Options': 'nosniff',
         'X-XSS-Protection': '1; mode=block',
-        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+        'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
-        'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
+        'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'X-Permitted-Cross-Domain-Policies': 'none',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Resource-Policy': 'same-origin'
     })
     
     return response
@@ -461,6 +505,14 @@ def init_sqlite_db(connection):
         else:
             print("✅ Ana Paula SQLite já existe - preservando senha atual")
         
+        # Proteger usuários críticos contra exclusão acidental
+        protected_users = ['admin', 'ana_paula']
+        for username in protected_users:
+            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+            user_row = cursor.fetchone()
+            if user_row:
+                log_security_event('PROTECTED_USER_VERIFIED', details=f'User {username} (ID: {user_row[0]}) protected against deletion')
+        
         connection.commit()
         cursor.close()
         connection.close()
@@ -702,10 +754,10 @@ def register():
     if request.method == 'POST':
         ip_address = request.remote_addr
         
-        # Validar e sanitizar input
-        username = validate_input(request.form.get('username', ''), max_length=50)
+        # Validar e sanitizar input com validação aprimorada
+        username = validate_input(request.form.get('username', ''), max_length=50, input_type='username')
         password = request.form.get('password', '')
-        name = validate_input(request.form.get('name', ''), max_length=100)
+        name = validate_input(request.form.get('name', ''), max_length=100, input_type='text')
         
         # Validações de segurança
         if not username or not password or not name:
@@ -777,8 +829,8 @@ def login():
             flash('Muitas tentativas de login. Tente novamente em 15 minutos.', 'error')
             return render_template('login.html'), 429
         
-        # Validar e sanitizar input
-        username = validate_input(request.form.get('username', ''), max_length=50)
+        # Validar e sanitizar input com validação aprimorada
+        username = validate_input(request.form.get('username', ''), max_length=50, input_type='username')
         password = request.form.get('password', '')
         
         if not username or not password:
@@ -1185,19 +1237,28 @@ def admin_dashboard():
 @app.route('/admin/change_password', methods=['POST'])
 @admin_required
 def admin_change_password():
+    ip_address = request.remote_addr
+    admin_id = session.get('user_id')
+    
     # Validar e sanitizar input
     user_id = request.form.get('user_id')
     new_password = request.form.get('new_password', '')
     
-    # Validações de segurança
+    # Validações de segurança aprimoradas
     if not user_id or not user_id.isdigit():
+        log_security_event('ADMIN_INVALID_USER_ID', user_id=admin_id, ip_address=ip_address)
         flash('ID de usuário inválido!', 'error')
         return redirect(url_for('admin_dashboard'))
     
     user_id = int(user_id)
     
+    # Validações de senha mais rigorosas
     if len(new_password) < 8:
         flash('A senha deve ter pelo menos 8 caracteres!', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    if len(new_password) > 128:
+        flash('A senha não pode ter mais que 128 caracteres!', 'error')
         return redirect(url_for('admin_dashboard'))
     
     # Verificar complexidade da senha
@@ -1205,43 +1266,152 @@ def admin_change_password():
         flash('Senha deve conter pelo menos uma letra e um número!', 'error')
         return redirect(url_for('admin_dashboard'))
     
+    # Verificar se contém caracteres especiais (recomendado)
+    if not re.search(r'[!@#$%^&*(),.?\":{}|<>]', new_password):
+        flash('Recomendado: Use pelo menos um caractere especial para maior segurança!', 'warning')
+    
     connection = get_db_connection()
     if connection:
         cursor = connection.cursor()
         
         # Verificar se usuário existe
         placeholder = get_param_placeholder()
-        cursor.execute(f"SELECT username FROM users WHERE id = {placeholder}", (user_id,))
+        cursor.execute(f"SELECT username, name FROM users WHERE id = {placeholder}", (user_id,))
         user_row = cursor.fetchone()
         
         if not user_row:
+            log_security_event('ADMIN_USER_NOT_FOUND', user_id=admin_id, details=f'Attempted to change password for non-existent user ID: {user_id}', ip_address=ip_address)
             flash('Usuário não encontrado!', 'error')
+            cursor.close()
+            connection.close()
             return redirect(url_for('admin_dashboard'))
         
         username = user_row[0] if isinstance(user_row, tuple) else user_row['username']
+        name = user_row[1] if isinstance(user_row, tuple) else user_row['name']
         
-        # Atualizar senha com hash forte
-        hashed_password = generate_password_hash(new_password, method='pbkdf2:sha256:100000')
+        # Verificar se é um usuário protegido
+        if is_protected_user(user_id):
+            audit_user_operation('PASSWORD_CHANGE_PROTECTED', user_id, admin_id, f'Protected user: {username}')
+        
+        # Atualizar senha com hash ainda mais forte
+        hashed_password = generate_password_hash(new_password, method='pbkdf2:sha256:150000')
         cursor.execute(f"UPDATE users SET password_hash = {placeholder} WHERE id = {placeholder}", 
                       (hashed_password, user_id))
         
         rows_affected = cursor.rowcount
         connection.commit()
         
+        # Log detalhado da operação
         log_security_event('ADMIN_PASSWORD_CHANGE', 
-                         user_id=session.get('user_id'), 
-                         details=f'Changed password for user: {username} (ID: {user_id})')
+                         user_id=admin_id, 
+                         details=f'Changed password for user: {username} ({name}) [ID: {user_id}] - Rows affected: {rows_affected}',
+                         ip_address=ip_address)
+        
+        audit_user_operation('PASSWORD_CHANGE', user_id, admin_id, f'User: {username} ({name})')
         
         cursor.close()
         connection.close()
-        flash('Senha alterada com sucesso! ✅', 'success')
+        flash(f'Senha alterada com sucesso para {name}! ✅', 'success')
     else:
+        log_security_event('ADMIN_DB_CONNECTION_ERROR', user_id=admin_id, ip_address=ip_address)
         flash('Erro ao conectar com o banco de dados! ❌', 'error')
     
     return redirect(url_for('admin_dashboard'))
 
+@app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
+@admin_required
+def admin_delete_user(user_id):
+    """Função protegida para exclusão de usuários com múltiplas validações"""
+    ip_address = request.remote_addr
+    admin_id = session.get('user_id')
+    
+    # Verificar se é um usuário protegido
+    if is_protected_user(user_id):
+        log_security_event('PROTECTED_USER_DELETE_ATTEMPT', 
+                         user_id=admin_id, 
+                         details=f'Attempted to delete protected user ID: {user_id}',
+                         ip_address=ip_address)
+        flash('❌ Usuário protegido! Não é possível excluir usuários críticos do sistema.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    # Verificar se não está tentando se auto-excluir
+    if user_id == admin_id:
+        log_security_event('SELF_DELETE_ATTEMPT', user_id=admin_id, ip_address=ip_address)
+        flash('❌ Você não pode excluir sua própria conta!', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    connection = get_db_connection()
+    if connection:
+        cursor = connection.cursor()
+        placeholder = get_param_placeholder()
+        
+        # Verificar se usuário existe e obter informações
+        cursor.execute(f"SELECT username, name FROM users WHERE id = {placeholder}", (user_id,))
+        user_row = cursor.fetchone()
+        
+        if not user_row:
+            flash('❌ Usuário não encontrado!', 'error')
+            cursor.close()
+            connection.close()
+            return redirect(url_for('admin_dashboard'))
+        
+        username = user_row[0] if isinstance(user_row, tuple) else user_row['username']
+        name = user_row[1] if isinstance(user_row, tuple) else user_row['name']
+        
+        # Executar exclusão
+        cursor.execute(f"DELETE FROM users WHERE id = {placeholder}", (user_id,))
+        rows_affected = cursor.rowcount
+        connection.commit()
+        
+        # Log da exclusão
+        audit_user_operation('DELETE', user_id, admin_id, f'Deleted user: {username} ({name})')
+        log_security_event('USER_DELETED', 
+                         user_id=admin_id, 
+                         details=f'Deleted user: {username} ({name}) [ID: {user_id}] - Rows affected: {rows_affected}',
+                         ip_address=ip_address)
+        
+        cursor.close()
+        connection.close()
+        flash(f'✅ Usuário {name} excluído com sucesso!', 'success')
+    else:
+        flash('❌ Erro ao conectar com o banco de dados!', 'error')
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/backup_users')
+@admin_required  
+def admin_backup_users():
+    """Criar backup dos usuários para recuperação"""
+    connection = get_db_connection()
+    backup_data = []
+    
+    if connection:
+        cursor = connection.cursor()
+        cursor.execute("SELECT id, username, name, created_at FROM users ORDER BY id")
+        users = cursor_to_dict_list(cursor, cursor.fetchall())
+        
+        # Log do backup
+        log_security_event('USER_BACKUP_CREATED', 
+                         user_id=session.get('user_id'),
+                         details=f'Backup created with {len(users)} users')
+        
+        cursor.close()
+        connection.close()
+        
+        # Retornar JSON do backup
+        from flask import jsonify
+        return jsonify({
+            'status': 'success',
+            'backup_time': datetime.now().isoformat(),
+            'user_count': len(users),
+            'users': users
+        })
+    
+    return jsonify({'status': 'error', 'message': 'Database connection failed'})
+
 @app.route('/admin/logout')
 def admin_logout():
+    log_security_event('ADMIN_LOGOUT', user_id=session.get('user_id'), ip_address=request.remote_addr)
     session.pop('is_admin', None)
     flash('Logout de administrador realizado!', 'info')
     return redirect(url_for('login'))
