@@ -346,6 +346,38 @@ def parse_database_url(url):
         'sslmode': 'require'
     }
 
+def create_example_data_for_user(cursor, user_id):
+    """Cria dados de exemplo para um usuário novo"""
+    # Tarefas de exemplo
+    tasks_example = [
+        ('💄 Rotina de skincare matinal', 'Limpeza, hidratante e protetor solar', 'alta', datetime.now().date()),
+        ('👗 Escolher look do dia', 'Combinar roupas e acessórios lindos', 'media', datetime.now().date()),
+        ('📚 Estudar 30 minutos', 'Focar nos estudos importantes', 'alta', datetime.now().date()),
+        ('🥗 Preparar almoço saudável', 'Cozinhar algo nutritivo e gostoso', 'media', datetime.now().date()),
+        ('🧘‍♀️ Momento de relaxamento', '15 minutos de meditação ou respiração', 'baixa', datetime.now().date())
+    ]
+    
+    for task in tasks_example:
+        cursor.execute("""
+            INSERT INTO tasks (user_id, title, description, priority, due_date)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (user_id, task[0], task[1], task[2], task[3]))
+    
+    # Rotinas de exemplo
+    routines_example = [
+        ('☀️ Acordar como uma princesa', 'Levantar cedo e começar o dia com energia', '07:00:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo'),
+        ('💄 Skincare matinal', 'Rotina de cuidados com a pele pela manhã', '07:30:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo'),
+        ('🍎 Café da manhã nutritivo', 'Tomar um café da manhã saudável e saboroso', '08:00:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo'),
+        ('💪 Exercícios ou alongamento', '20 minutos de atividade física', '18:00:00', 'segunda,quarta,sexta'),
+        ('🌙 Skincare noturno', 'Rotina de cuidados noturnos', '21:30:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo')
+    ]
+    
+    for routine in routines_example:
+        cursor.execute("""
+            INSERT INTO routines (user_id, title, description, time_schedule, days_of_week)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (user_id, routine[0], routine[1], routine[2], routine[3]))
+
 def init_sqlite_db(connection):
     """Inicializa banco SQLite com tabelas adaptadas"""
     try:
@@ -403,21 +435,31 @@ def init_sqlite_db(connection):
             )
         """)
         
-        # Criar usuários padrão (sempre recria para garantir persistência no Render)
-        # Limpar e recriar usuários padrão para evitar problemas de persistência
-        cursor.execute("DELETE FROM users WHERE username IN ('admin', 'ana_paula')")
+        # Criar usuários padrão apenas se não existirem (preservar senhas alteradas)
         
-        # Admin
-        admin_password = generate_password_hash('admin2025')
-        cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
-                     ('admin', admin_password, 'Administrador'))
-        print("👑 Admin SQLite criado")
+        # Verificar se admin existe
+        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
+        admin_exists = cursor.fetchone()[0] > 0
         
-        # Ana Paula
-        user_password = generate_password_hash('princesa123')
-        cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
-                     ('ana_paula', user_password, 'Ana Paula Schlickmann Michels'))
-        print("✅ Ana Paula SQLite criada")
+        if not admin_exists:
+            admin_password = generate_password_hash('admin2025')
+            cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
+                         ('admin', admin_password, 'Administrador'))
+            print("👑 Admin SQLite criado")
+        else:
+            print("👑 Admin SQLite já existe - preservando senha atual")
+        
+        # Verificar se Ana Paula existe
+        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'ana_paula'")
+        user_exists = cursor.fetchone()[0] > 0
+        
+        if not user_exists:
+            user_password = generate_password_hash('princesa123')
+            cursor.execute("INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
+                         ('ana_paula', user_password, 'Ana Paula Schlickmann Michels'))
+            print("✅ Ana Paula SQLite criada")
+        else:
+            print("✅ Ana Paula SQLite já existe - preservando senha atual")
         
         connection.commit()
         cursor.close()
@@ -524,56 +566,30 @@ def init_db():
                 VALUES ('admin', %s, 'Administrador')
             """, (admin_password,))
         
-        # Verificar e recriar usuário ana_paula se necessário
+        # Verificar e criar usuário ana_paula apenas se não existir (preservar senha)
         cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'ana_paula'")
         user_exists = cursor.fetchone()[0] > 0
         
-        if user_exists:
-            # Deletar usuário existente para recriar com senha correta
-            cursor.execute("DELETE FROM users WHERE username = 'ana_paula'")
-            print("🔄 Usuário ana_paula removido para recriação")
-        
-        # Criar usuário ana_paula
-        hashed_password = generate_password_hash('princesa123')
-        cursor.execute("""
-            INSERT INTO users (username, password_hash, name) 
-            VALUES ('ana_paula', %s, 'Ana Paula Schlickmann Michels')
-            RETURNING id
-        """, (hashed_password,))
-        
-        # Inserir dados de exemplo apenas para usuário novo
-        user_id = cursor.fetchone()[0]
-        print(f"✅ Usuário ana_paula criado com ID: {user_id}")
-        
-        # Tarefas de exemplo
-        tasks_example = [
-                ('💄 Rotina de skincare matinal', 'Limpeza, hidratante e protetor solar', 'alta', datetime.now().date()),
-                ('👗 Escolher look do dia', 'Combinar roupas e acessórios lindos', 'media', datetime.now().date()),
-                ('📚 Estudar 30 minutos', 'Focar nos estudos importantes', 'alta', datetime.now().date()),
-                ('🥗 Preparar almoço saudável', 'Cozinhar algo nutritivo e gostoso', 'media', datetime.now().date()),
-                ('🧘‍♀️ Momento de relaxamento', '15 minutos de meditação ou respiração', 'baixa', datetime.now().date())
-        ]
-        
-        for task in tasks_example:
+        if not user_exists:
+            # Criar usuário ana_paula apenas se não existir
+            hashed_password = generate_password_hash('princesa123')
             cursor.execute("""
-                INSERT INTO tasks (user_id, title, description, priority, due_date)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (user_id, task[0], task[1], task[2], task[3]))
-        
-        # Rotinas de exemplo
-        routines_example = [
-            ('☀️ Acordar como uma princesa', 'Levantar cedo e começar o dia com energia', '07:00:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo'),
-            ('💄 Skincare matinal', 'Rotina de cuidados com a pele pela manhã', '07:30:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo'),
-            ('🍎 Café da manhã nutritivo', 'Tomar um café da manhã saudável e saboroso', '08:00:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo'),
-            ('💪 Exercícios ou alongamento', '20 minutos de atividade física', '18:00:00', 'segunda,quarta,sexta'),
-            ('🌙 Skincare noturno', 'Rotina de cuidados noturnos', '21:30:00', 'segunda,terca,quarta,quinta,sexta,sabado,domingo')
-        ]
-        
-        for routine in routines_example:
-            cursor.execute("""
-                INSERT INTO routines (user_id, title, description, time_schedule, days_of_week)
-                VALUES (%s, %s, %s, %s, %s)
-                """, (user_id, routine[0], routine[1], routine[2], routine[3]))
+                INSERT INTO users (username, password_hash, name) 
+                VALUES ('ana_paula', %s, 'Ana Paula Schlickmann Michels')
+                RETURNING id
+            """, (hashed_password,))
+            
+            # Inserir dados de exemplo apenas para usuário novo
+            user_id = cursor.fetchone()[0]
+            print(f"✅ Usuário ana_paula criado com ID: {user_id}")
+            
+            # Criar dados de exemplo apenas para usuário novo
+            create_example_data_for_user(cursor, user_id)
+        else:
+            print("✅ Usuário ana_paula já existe - preservando senha atual")
+            # Não inserir dados de exemplo se usuário já existe
+            return True
+
         
         connection.commit()
         cursor.close()
