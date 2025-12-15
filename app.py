@@ -801,8 +801,8 @@ def login():
                 session['login_ip'] = ip_address
                 
                 # Limpar tentativas de login para este IP
-                if ip_address in login_attempts:
-                    del login_attempts[ip_address]
+                if ip_address in rate_limit_storage:
+                    del rate_limit_storage[ip_address]
                 
                 log_security_event('SUCCESSFUL_LOGIN', user_id=user['id'], ip_address=ip_address)
                 flash('Login realizado com sucesso! Bem-vinda, Princesa! 👑', 'success')
