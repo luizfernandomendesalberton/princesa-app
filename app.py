@@ -22,6 +22,18 @@ logging.basicConfig(
 )
 security_logger = logging.getLogger('security')
 
+def log_security_event(event_type, user_id=None, details=None, ip_address=None):
+    """Log de eventos de segurança"""
+    log_message = f'Security Event: {event_type}'
+    if user_id:
+        log_message += f' | User ID: {user_id}'
+    if ip_address:
+        log_message += f' | IP: {ip_address}'
+    if details:
+        log_message += f' | Details: {details}'
+    
+    security_logger.info(log_message)
+
 def get_param_placeholder():
     """Retorna o placeholder correto para parâmetros SQL"""
     # Detectar tipo de conexão via DATABASE_URL ou variáveis de ambiente
