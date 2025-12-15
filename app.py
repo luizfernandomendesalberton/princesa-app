@@ -6,9 +6,21 @@ import psycopg2
 import psycopg2.extras
 from datetime import datetime, timedelta
 from functools import wraps
+import secrets
+import re
+from urllib.parse import quote, unquote
+import logging
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Variável global para tipo de banco
 USING_SQLITE = False
+
+# Configuração de logging para segurança
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+security_logger = logging.getLogger('security')
 
 def get_param_placeholder():
     """Retorna o placeholder correto para parâmetros SQL"""
@@ -47,8 +59,47 @@ def cursor_to_dict_list(cursor, rows):
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
-# Configuração para produção
-app.secret_key = os.environ.get('SECRET_KEY', 'princesa_ana_paula_2025_secret_key_muito_segura')
+# Configuração segura para produção
+app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_urlsafe(32)
+
+# Configurações de segurança
+app.config.update(
+    SESSION_COOKIE_SECURE=True if os.environ.get('FLASK_ENV') == 'production' else False,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=2),  # Sessão expira em 2h
+    WTF_CSRF_TIME_LIMIT=None,
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024  # 16MB max upload
+)
+
+# Middleware para proxy reverso (Render)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# Headers de segurança
+@app.after_request
+def add_security_headers(response):
+    """Adiciona headers de segurança em todas as respostas"""
+    # Content Security Policy
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "font-src 'self' https://cdnjs.cloudflare.com; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self';"
+    )
+    
+    response.headers.update({
+        'Content-Security-Policy': csp,
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+        'X-XSS-Protection': '1; mode=block',
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
+    })
+    
+    return response
 
 # Middleware simplificado para garantir que o banco esteja sempre inicializado
 @app.before_request
@@ -468,8 +519,29 @@ def init_db():
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Verificar se usuário está logado
         if 'user_id' not in session:
+            log_security_event('UNAUTHORIZED_ACCESS', details=f'Attempted access to {request.endpoint}')
             return redirect(url_for('login'))
+        
+        # Verificar expiração da sessão
+        if 'login_time' in session:
+            login_time = datetime.fromisoformat(session['login_time'])
+            if datetime.now() - login_time > app.config['PERMANENT_SESSION_LIFETIME']:
+                session.clear()
+                log_security_event('SESSION_EXPIRED', user_id=session.get('user_id'))
+                flash('Sua sessão expirou. Faça login novamente.', 'warning')
+                return redirect(url_for('login'))
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'is_admin' not in session:
+            log_security_event('UNAUTHORIZED_ADMIN_ACCESS', user_id=session.get('user_id'))
+            return redirect(url_for('admin_login'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -543,12 +615,33 @@ def index():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        name = request.form['name']
+        ip_address = request.remote_addr
         
+        # Validar e sanitizar input
+        username = validate_input(request.form.get('username', ''), max_length=50)
+        password = request.form.get('password', '')
+        name = validate_input(request.form.get('name', ''), max_length=100)
+        
+        # Validações de segurança
         if not username or not password or not name:
             flash('Todos os campos são obrigatórios!', 'error')
+            return render_template('register.html')
+        
+        if len(username) < 3:
+            flash('Nome de usuário deve ter pelo menos 3 caracteres!', 'error')
+            return render_template('register.html')
+        
+        if len(password) < 8:
+            flash('Senha deve ter pelo menos 8 caracteres!', 'error')
+            return render_template('register.html')
+        
+        # Verificar complexidade da senha
+        if not re.search(r'[A-Za-z]', password) or not re.search(r'[0-9]', password):
+            flash('Senha deve conter pelo menos uma letra e um número!', 'error')
+            return render_template('register.html')
+        
+        if len(name) < 2:
+            flash('Nome deve ter pelo menos 2 caracteres!', 'error')
             return render_template('register.html')
         
         connection = get_db_connection()
@@ -559,15 +652,18 @@ def register():
                 placeholder = get_param_placeholder()
                 cursor.execute(f"SELECT id FROM users WHERE username = {placeholder}", (username,))
                 if cursor.fetchone():
+                    log_security_event('REGISTRATION_DUPLICATE_USERNAME', details=f'Username: {username}', ip_address=ip_address)
                     flash('Nome de usuário já existe!', 'error')
                     return render_template('register.html')
                 
-                # Criar novo usuário
-                hashed_password = generate_password_hash(password)
-                placeholder = get_param_placeholder()
-                print(f"🔍 Tentando cadastrar usuário: {username}")
+                # Criar novo usuário com senha forte
+                hashed_password = generate_password_hash(password, method='pbkdf2:sha256:100000')
+                
+                log_security_event('USER_REGISTRATION_ATTEMPT', details=f'Username: {username}, Name: {name}', ip_address=ip_address)
                 cursor.execute(f"INSERT INTO users (username, password_hash, name) VALUES ({placeholder}, {placeholder}, {placeholder})", (username, hashed_password, name))
                 connection.commit()
+                
+                log_security_event('SUCCESSFUL_REGISTRATION', details=f'Username: {username}', ip_address=ip_address)
                 print(f"✅ Usuário {username} cadastrado com sucesso!")
                 cursor.close()
                 connection.close()
@@ -576,7 +672,8 @@ def register():
                 return redirect(url_for('login'))
                 
             except Exception as e:
-                flash(f'Erro ao cadastrar usuário: {str(e)}', 'error')
+                log_security_event('REGISTRATION_ERROR', details=f'Error: {str(e)}', ip_address=ip_address)
+                flash('Erro ao cadastrar usuário. Tente novamente.', 'error')
                 return render_template('register.html')
         else:
             flash('Erro de conexão com o banco de dados!', 'error')
@@ -587,8 +684,26 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        ip_address = request.remote_addr
+        
+        # Verificar rate limiting
+        if is_rate_limited(ip_address):
+            log_security_event('RATE_LIMITED_LOGIN', ip_address=ip_address)
+            flash('Muitas tentativas de login. Tente novamente em 15 minutos.', 'error')
+            return render_template('login.html'), 429
+        
+        # Validar e sanitizar input
+        username = validate_input(request.form.get('username', ''), max_length=50)
+        password = request.form.get('password', '')
+        
+        if not username or not password:
+            flash('Usuário e senha são obrigatórios!', 'error')
+            return render_template('login.html')
+        
+        if len(password) < 6:
+            record_login_attempt(ip_address)
+            flash('Senha deve ter pelo menos 6 caracteres!', 'error')
+            return render_template('login.html')
         
         connection = get_db_connection()
         if connection:
@@ -597,31 +712,47 @@ def login():
             cursor.execute(f"SELECT id, username, name, password_hash FROM users WHERE username = {placeholder}", (username,))
             user_row = cursor.fetchone()
             
-            print(f"🔍 Login attempt - User: {username}")
-            print(f"🔍 User found in DB: {bool(user_row)}")
+            log_security_event('LOGIN_ATTEMPT', details=f'User: {username}', ip_address=ip_address)
             
             if user_row and check_password_hash(user_row[3], password):
+                # Login bem-sucedido
                 user = {
                     'id': user_row[0],
                     'username': user_row[1], 
                     'name': user_row[2],
                     'password_hash': user_row[3]
                 }
+                
+                # Configurar sessão segura
+                session.permanent = True
                 session['user_id'] = user['id']
                 session['username'] = user['username']
                 session['name'] = user['name']
+                session['login_time'] = datetime.now().isoformat()
+                session['login_ip'] = ip_address
+                
+                # Limpar tentativas de login para este IP
+                if ip_address in login_attempts:
+                    del login_attempts[ip_address]
+                
+                log_security_event('SUCCESSFUL_LOGIN', user_id=user['id'], ip_address=ip_address)
                 flash('Login realizado com sucesso! Bem-vinda, Princesa! 👑', 'success')
                 return redirect(url_for('dashboard'))
             else:
+                # Login falhado
+                record_login_attempt(ip_address)
+                
                 if user_row:
-                    flash('Senha incorreta! Tente: princesa123 🚫', 'error')
+                    log_security_event('FAILED_LOGIN_WRONG_PASSWORD', details=f'User: {username}', ip_address=ip_address)
+                    flash('Senha incorreta! 🚫', 'error')
                 else:
-                    flash(f'Usuário "{username}" não encontrado! Use o botão de cadastro. 🚫', 'error')
+                    log_security_event('FAILED_LOGIN_USER_NOT_FOUND', details=f'User: {username}', ip_address=ip_address)
+                    flash(f'Usuário "{username}" não encontrado! 🚫', 'error')
                 
             cursor.close()
             connection.close()
         else:
-            flash('Erro de conexão com o banco de dados! Verifique os logs.', 'error')
+            flash('Erro de conexão com o banco de dados!', 'error')
     
     return render_template('login.html')
 
@@ -704,25 +835,42 @@ def tasks():
 @app.route('/add_task', methods=['POST'])
 @login_required
 def add_task():
-    title = request.form.get('title')
-    description = request.form.get('description', '')
+    # Validar e sanitizar input
+    title = validate_input(request.form.get('title', ''), max_length=255)
+    description = validate_input(request.form.get('description', ''), max_length=1000)
     priority = request.form.get('priority', 'media')
     due_date = request.form.get('due_date')
     
-    if not title:
-        flash('Título da tarefa é obrigatório!', 'error')
+    # Validações
+    if not title or len(title.strip()) < 2:
+        flash('Título da tarefa deve ter pelo menos 2 caracteres!', 'error')
         return redirect(url_for('tasks'))
+    
+    # Validar prioridade
+    valid_priorities = ['baixa', 'media', 'alta']
+    if priority not in valid_priorities:
+        priority = 'media'
+    
+    # Validar data se fornecida
+    if due_date:
+        try:
+            datetime.strptime(due_date, '%Y-%m-%d')
+        except ValueError:
+            flash('Formato de data inválido!', 'error')
+            return redirect(url_for('tasks'))
     
     connection = get_db_connection()
     if connection:
         cursor = connection.cursor()
         placeholder = get_param_placeholder()
-        print(f"🔍 Adicionando tarefa: {title} para usuário {session['user_id']}")
+        
+        log_security_event('TASK_CREATION', user_id=session['user_id'], details=f'Title: {title[:50]}')
+        
         cursor.execute(f"""
             INSERT INTO tasks (user_id, title, description, priority, due_date)
             VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
-        """, (session['user_id'], title, description, priority, due_date))
-        print(f"✅ Tarefa adicionada com sucesso!")
+        """, (session['user_id'], title, description, priority, due_date or None))
+        
         connection.commit()
         cursor.close()
         connection.close()
@@ -794,25 +942,46 @@ def routines():
 @app.route('/add_routine', methods=['POST'])
 @login_required
 def add_routine():
-    title = request.form.get('title')
-    description = request.form.get('description', '')
+    # Validar e sanitizar input
+    title = validate_input(request.form.get('title', ''), max_length=255)
+    description = validate_input(request.form.get('description', ''), max_length=1000)
     time_schedule = request.form.get('time_schedule')
     days_of_week = ','.join(request.form.getlist('days_of_week'))
     
-    if not title:
-        flash('Título da rotina é obrigatório!', 'error')
+    # Validações
+    if not title or len(title.strip()) < 2:
+        flash('Título da rotina deve ter pelo menos 2 caracteres!', 'error')
+        return redirect(url_for('routines'))
+    
+    # Validar horário se fornecido
+    if time_schedule:
+        try:
+            datetime.strptime(time_schedule, '%H:%M')
+        except ValueError:
+            flash('Formato de horário inválido! Use HH:MM', 'error')
+            return redirect(url_for('routines'))
+    
+    # Validar dias da semana
+    valid_days = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
+    selected_days = [day for day in request.form.getlist('days_of_week') if day in valid_days]
+    days_of_week = ','.join(selected_days)
+    
+    if not selected_days:
+        flash('Selecione pelo menos um dia da semana!', 'error')
         return redirect(url_for('routines'))
     
     connection = get_db_connection()
     if connection:
         cursor = connection.cursor()
         placeholder = get_param_placeholder()
-        print(f"🔍 Adicionando rotina: {title} para usuário {session['user_id']}")
+        
+        log_security_event('ROUTINE_CREATION', user_id=session['user_id'], details=f'Title: {title[:50]}')
+        
         cursor.execute(f"""
             INSERT INTO routines (user_id, title, description, time_schedule, days_of_week)
             VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
         """, (session['user_id'], title, description, time_schedule or None, days_of_week))
-        print(f"✅ Rotina adicionada com sucesso!")
+        
         connection.commit()
         cursor.close()
         connection.close()
@@ -929,30 +1098,55 @@ def admin_dashboard():
     return render_template('admin_dashboard.html', users=users)
 
 @app.route('/admin/change_password', methods=['POST'])
+@admin_required
 def admin_change_password():
-    if 'is_admin' not in session:
-        return redirect(url_for('admin_login'))
+    # Validar e sanitizar input
+    user_id = request.form.get('user_id')
+    new_password = request.form.get('new_password', '')
     
-    user_id = request.form['user_id']
-    new_password = request.form['new_password']
+    # Validações de segurança
+    if not user_id or not user_id.isdigit():
+        flash('ID de usuário inválido!', 'error')
+        return redirect(url_for('admin_dashboard'))
     
-    if not new_password or len(new_password) < 6:
-        flash('A senha deve ter pelo menos 6 caracteres!', 'error')
+    user_id = int(user_id)
+    
+    if len(new_password) < 8:
+        flash('A senha deve ter pelo menos 8 caracteres!', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    # Verificar complexidade da senha
+    if not re.search(r'[A-Za-z]', new_password) or not re.search(r'[0-9]', new_password):
+        flash('Senha deve conter pelo menos uma letra e um número!', 'error')
         return redirect(url_for('admin_dashboard'))
     
     connection = get_db_connection()
     if connection:
         cursor = connection.cursor()
-        hashed_password = generate_password_hash(new_password)
         
+        # Verificar se usuário existe
         placeholder = get_param_placeholder()
-        print(f"🔍 Alterando senha do usuário ID: {user_id}")
+        cursor.execute(f"SELECT username FROM users WHERE id = {placeholder}", (user_id,))
+        user_row = cursor.fetchone()
+        
+        if not user_row:
+            flash('Usuário não encontrado!', 'error')
+            return redirect(url_for('admin_dashboard'))
+        
+        username = user_row[0] if isinstance(user_row, tuple) else user_row['username']
+        
+        # Atualizar senha com hash forte
+        hashed_password = generate_password_hash(new_password, method='pbkdf2:sha256:100000')
         cursor.execute(f"UPDATE users SET password_hash = {placeholder} WHERE id = {placeholder}", 
                       (hashed_password, user_id))
         
         rows_affected = cursor.rowcount
         connection.commit()
-        print(f"✅ Senha alterada! Linhas afetadas: {rows_affected}")
+        
+        log_security_event('ADMIN_PASSWORD_CHANGE', 
+                         user_id=session.get('user_id'), 
+                         details=f'Changed password for user: {username} (ID: {user_id})')
+        
         cursor.close()
         connection.close()
         flash('Senha alterada com sucesso! ✅', 'success')
