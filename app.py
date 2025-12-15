@@ -34,6 +34,63 @@ def log_security_event(event_type, user_id=None, details=None, ip_address=None):
     
     security_logger.info(log_message)
 
+# Sistema de rate limiting simples
+rate_limit_storage = {}
+
+def is_rate_limited(ip_address, max_attempts=5, window_minutes=15):
+    """Verifica se um IP está sendo limitado por rate limiting"""
+    current_time = datetime.now()
+    cleanup_time = current_time - timedelta(minutes=window_minutes)
+    
+    # Limpar registros antigos
+    if ip_address in rate_limit_storage:
+        rate_limit_storage[ip_address] = [
+            attempt for attempt in rate_limit_storage[ip_address] 
+            if attempt > cleanup_time
+        ]
+        
+        # Verificar se excedeu o limite
+        if len(rate_limit_storage[ip_address]) >= max_attempts:
+            return True
+    
+    return False
+
+def add_rate_limit_attempt(ip_address):
+    """Adiciona uma tentativa de rate limiting para um IP"""
+    current_time = datetime.now()
+    
+    if ip_address not in rate_limit_storage:
+        rate_limit_storage[ip_address] = []
+    
+    rate_limit_storage[ip_address].append(current_time)
+
+def record_login_attempt(ip_address):
+    """Registra uma tentativa de login para rate limiting"""
+    add_rate_limit_attempt(ip_address)
+
+def validate_input(input_str, max_length=255, allow_empty=True):
+    """Valida e limpa entrada do usuário"""
+    if input_str is None:
+        return "" if allow_empty else None
+    
+    # Converter para string e remover espaços
+    cleaned = str(input_str).strip()
+    
+    # Verificar se vazio quando não permitido
+    if not allow_empty and not cleaned:
+        return None
+    
+    # Verificar tamanho máximo
+    if len(cleaned) > max_length:
+        cleaned = cleaned[:max_length]
+    
+    # Sanitizar caracteres perigosos básicos
+    dangerous_chars = ['<', '>', '"', "'", '&', '\x00', '\n', '\r', '\t']
+    for char in dangerous_chars:
+        cleaned = cleaned.replace(char, '')
+    
+    return cleaned
+
 def get_param_placeholder():
     """Retorna o placeholder correto para parâmetros SQL"""
     # Detectar tipo de conexão via DATABASE_URL ou variáveis de ambiente
