@@ -168,6 +168,94 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para adicionar rotina -->
+<div class="modal fade" id="addRoutineModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus"></i> Nova Rotina de Princesa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_routine') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-heading"></i> Nome da Rotina
+                            </label>
+                            <input type="text" class="form-control princess-input" name="title" 
+                                   placeholder="Ex: Exercícios matinais, Skincare noturno..." required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-align-left"></i> Descrição da Rotina
+                            </label>
+                            <textarea class="form-control princess-input" name="description" rows="3" 
+                                      placeholder="Descreva o que envolve esta rotina..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-clock"></i> Horário
+                            </label>
+                            <input type="time" class="form-control princess-input" name="time_schedule">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-calendar-week"></i> Dias da Semana
+                            </label>
+                            <div class="days-selector">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="segunda" id="seg-dash">
+                                    <label class="form-check-label" for="seg-dash">Seg</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="terca" id="ter-dash">
+                                    <label class="form-check-label" for="ter-dash">Ter</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="quarta" id="qua-dash">
+                                    <label class="form-check-label" for="qua-dash">Qua</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="quinta" id="qui-dash">
+                                    <label class="form-check-label" for="qui-dash">Qui</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="sexta" id="sex-dash">
+                                    <label class="form-check-label" for="sex-dash">Sex</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="sabado" id="sab-dash">
+                                    <label class="form-check-label" for="sab-dash">Sáb</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="domingo" id="dom-dash">
+                                    <label class="form-check-label" for="dom-dash">Dom</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn princess-btn-primary">
+                        <i class="fas fa-heart"></i> Criar Rotina
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
