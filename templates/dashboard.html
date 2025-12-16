@@ -32,87 +32,36 @@
         </div>
     </div>
 
-    <!-- Cards Compactos -->
-    <div class="row mt-3">
-        <div class="col-md-6 mb-3">
-            <div class="princess-card-compact">
-                <div class="card-header-compact">
-                    <h6><i class="fas fa-tasks"></i> Próximas Tarefas</h6>
-                </div>
-                <div class="card-body">
-                    {% if tasks %}
-                        {% for task in tasks %}
-                        <div class="task-item {{ 'completed' if task.completed else 'pending' }}">
-                            <div class="task-info">
-                                <h6>{{ task.title }}</h6>
-                                {% if task.description %}
-                                <p class="task-description">{{ task.description }}</p>
-                                {% endif %}
-                                {% if task.due_date %}
-                                <small class="text-muted">
-                                    <i class="fas fa-calendar"></i> {{ task.due_date | format_date }}
-                                </small>
-                                {% endif %}
-                            </div>
-                            <div class="task-priority priority-{{ task.priority }}">
-                                {{ task.priority.title() }}
-                            </div>
-                        </div>
-                        {% endfor %}
-                        <div class="text-center mt-3">
-                            <a href="{{ url_for('tasks') }}" class="btn princess-btn-outline">
-                                Ver Todas as Tarefas <i class="fas fa-arrow-right"></i>
-                            </a>
-                        </div>
-                    {% else %}
-                        <div class="empty-state">
-                            <i class="fas fa-check-circle text-success"></i>
-                            <h6>Parabéns, Princesa!</h6>
-                            <p>Você não tem tarefas pendentes no momento!</p>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-6 mb-3">
-            <div class="princess-card-compact">
-                <div class="card-header-compact">
-                    <h6><i class="fas fa-calendar-alt"></i> Rotinas de Hoje</h6>
-                </div>
-                <div class="card-body">
-                    {% if routines %}
-                        {% for routine in routines %}
-                        <div class="routine-item">
-                            <div class="routine-time">
-                                <i class="fas fa-clock"></i>
-                                {{ routine.time_schedule | format_time }}
-                            </div>
-                            <div class="routine-info">
-                                <h6>{{ routine.title }}</h6>
-                                {% if routine.description %}
-                                <p class="routine-description">{{ routine.description }}</p>
-                                {% endif %}
-                            </div>
-                            <div class="routine-status">
-                                <button class="btn btn-sm princess-btn-success" data-routine-id="{{ routine.id }}" onclick="markRoutineExecuted(this.getAttribute('data-routine-id'))">
-                                    <i class="fas fa-check"></i>
-                                </button>
+    <!-- Área Central com Mensagem de Boas-vindas -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="welcome-area text-center">
+                <div class="princess-card-compact">
+                    <div class="card-body">
+                        <div class="welcome-content">
+                            <i class="fas fa-crown princess-crown-icon"></i>
+                            <h3 class="princess-welcome-title">Bem-vinda, Princesa Ana Paula!</h3>
+                            <p class="princess-welcome-subtitle">Use os botões acima para criar suas tarefas e rotinas</p>
+                            <div class="quick-stats mt-4">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="stat-item">
+                                            <i class="fas fa-tasks text-pink"></i>
+                                            <h4>{{ tasks|length if tasks else 0 }}</h4>
+                                            <p>Tarefas Ativas</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-item">
+                                            <i class="fas fa-calendar-alt text-purple"></i>
+                                            <h4>{{ routines|length if routines else 0 }}</h4>
+                                            <p>Rotinas Hoje</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        {% endfor %}
-                        <div class="text-center mt-3">
-                            <a href="{{ url_for('routines') }}" class="btn princess-btn-outline">
-                                Ver Todas as Rotinas <i class="fas fa-arrow-right"></i>
-                            </a>
-                        </div>
-                    {% else %}
-                        <div class="empty-state">
-                            <i class="fas fa-spa text-info"></i>
-                            <h6>Dia Livre!</h6>
-                            <p>Você não tem rotinas agendadas para hoje.</p>
-                        </div>
-                    {% endif %}
+                    </div>
                 </div>
             </div>
         </div>

@@ -7,6 +7,7 @@
     --princess-light-pink: #ffb6c1;
     --princess-lavender: #e1bee7;
     --princess-rose-gold: #e91e63;
+    --princess-gold: #ffd700;
     --princess-soft-white: #fefefe;
     --princess-light-gray: #f8f9fa;
     --shadow-soft: 0 5px 15px rgba(0, 0, 0, 0.08);
@@ -996,6 +997,78 @@ html, body {
     scrollbar-color: var(--princess-pink) transparent;
 }
 
+/* Área de Boas-vindas */
+.welcome-area {
+    margin-top: 20px;
+}
+
+.welcome-content {
+    padding: 30px 20px;
+}
+
+.princess-crown-icon {
+    font-size: 4rem;
+    color: var(--princess-gold);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    animation: gentle-bounce 2s infinite ease-in-out;
+}
+
+@keyframes gentle-bounce {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+.princess-welcome-title {
+    color: var(--princess-purple);
+    font-family: 'Dancing Script', cursive;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.princess-welcome-subtitle {
+    color: #666;
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+}
+
+.quick-stats {
+    display: flex;
+    justify-content: center;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 20px;
+}
+
+.stat-item i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.stat-item h4 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: 10px 0 5px 0;
+    color: var(--princess-purple);
+}
+
+.stat-item p {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.text-pink {
+    color: var(--princess-pink) !important;
+}
+
+.text-purple {
+    color: var(--princess-purple) !important;
+}
+
 /* Task e Routine Items Compactos */
 .task-item,
 .routine-item {
@@ -1081,8 +1154,8 @@ body {
     }
     
     .princess-card-compact {
-        height: calc((100vh - 250px) / 2);
-        max-height: 200px;
+        height: auto;
+        min-height: 300px;
         margin-bottom: 10px;
     }
     
@@ -1103,6 +1176,22 @@ body {
     .quick-actions-compact {
         margin-bottom: 15px;
         padding: 10px;
+    }
+    
+    .princess-crown-icon {
+        font-size: 3rem;
+    }
+    
+    .princess-welcome-title {
+        font-size: 2rem;
+    }
+    
+    .welcome-content {
+        padding: 20px 15px;
+    }
+    
+    .stat-item h4 {
+        font-size: 2rem;
     }
 }
 
