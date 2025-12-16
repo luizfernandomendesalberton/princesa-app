@@ -529,10 +529,21 @@ body {
 /* Modals - Melhorados */
 .modal {
     backdrop-filter: blur(5px);
+    z-index: 1055;
 }
 
 .modal-backdrop {
     background-color: rgba(255, 182, 193, 0.3);
+    z-index: 1050;
+}
+
+.modal.show {
+    display: block !important;
+}
+
+.modal-dialog {
+    margin: 3rem auto;
+    max-width: 500px;
 }
 
 .modal-content {
@@ -579,6 +590,77 @@ body {
 .btn-close:hover {
     opacity: 1;
     transform: scale(1.1);
+}
+
+/* Quick Actions Bar - Barra de Ações Rápidas */
+.quick-actions {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 15px 20px;
+    border-radius: 0 0 20px 20px;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.quick-actions h5 {
+    color: var(--princess-purple);
+    margin-bottom: 15px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.action-buttons .btn {
+    flex: 1;
+    min-width: 140px;
+    max-width: 200px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.action-buttons .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Garantir que botões de modal não redirecionem */
+.action-buttons button[data-bs-toggle="modal"] {
+    cursor: pointer !important;
+}
+
+.action-buttons button[data-bs-toggle="modal"]:focus {
+    outline: 2px solid var(--princess-pink);
+    outline-offset: 2px;
+}
+
+/* Responsive para ações rápidas */
+@media (max-width: 768px) {
+    .action-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .action-buttons .btn {
+        flex: none;
+        min-width: auto;
+        max-width: none;
+        margin-bottom: 10px;
+    }
 }
 
 /* Layout Improvements */
