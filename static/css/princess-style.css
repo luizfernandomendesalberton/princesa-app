@@ -971,8 +971,8 @@ html, body {
     border-radius: 15px;
     box-shadow: var(--shadow-soft);
     margin-bottom: 15px;
-    height: calc((100vh - 200px) / 2);
-    max-height: 240px;
+    height: calc((600vh - 200px) / 2);
+    max-height: 650px;
     overflow: hidden;
 }
 
