@@ -1,4 +1,4 @@
-const CACHE_NAME = 'princesa-app-v1.2.0';
+const CACHE_NAME = 'princesa-app-v1.2.1';
 const urlsToCache = [
     '/',
     '/login',
@@ -10,15 +10,25 @@ const urlsToCache = [
     '/static/css/dashboard.css',
     '/static/css/tasks.css',
     '/static/css/routines.css',
-    '/static/js/princess-app.js',
+    '/static/css/animations.css',
+    '/static/js/app.js',
+    '/static/js/notifications.js',
     '/static/js/dashboard.js',
     '/static/js/tasks.js',
     '/static/js/routines.js',
+    '/static/icons/icon-32x32.png',
+    '/static/icons/icon-144x144.png',
     '/static/icons/icon-192x192.png',
     '/static/icons/icon-512x512.png',
-    'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
-    'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js'
+    '/static/manifest.json'
+];
+
+// URLs externas que não devem ser cacheadas
+const externalResources = [
+    'https://cdn.jsdelivr.net',
+    'https://cdnjs.cloudflare.com',
+    'https://fonts.googleapis.com',
+    'https://fonts.gstatic.com'
 ];
 
 // Instalar Service Worker
@@ -55,6 +65,28 @@ self.addEventListener('activate', function(event) {
 
 // Interceptar requisições
 self.addEventListener('fetch', function(event) {
+    const requestUrl = new URL(event.request.url);
+    
+    // Pular recursos de extensões do browser
+    if (requestUrl.protocol === 'chrome-extension:' || requestUrl.protocol === 'moz-extension:') {
+        return;
+    }
+    
+    // Estratégia diferente para recursos externos
+    const isExternal = externalResources.some(domain => event.request.url.includes(domain));
+    
+    if (isExternal) {
+        // Para recursos externos: network first, sem cache
+        event.respondWith(
+            fetch(event.request).catch(function() {
+                console.log('🌸 Recurso externo falhou:', event.request.url);
+                return new Response('Resource unavailable', { status: 503 });
+            })
+        );
+        return;
+    }
+    
+    // Para recursos internos: cache first
     event.respondWith(
         caches.match(event.request)
             .then(function(response) {
@@ -65,12 +97,12 @@ self.addEventListener('fetch', function(event) {
                 
                 // Se não encontrou, faz requisição à rede
                 return fetch(event.request).then(function(response) {
-                    // Verifica se a resposta é válida
+                    // Verifica se a resposta é válida para cache
                     if (!response || response.status !== 200 || response.type !== 'basic') {
                         return response;
                     }
 
-                    // Clona a resposta para o cache
+                    // Clona a resposta para o cache apenas se for recurso interno
                     var responseToCache = response.clone();
                     caches.open(CACHE_NAME).then(function(cache) {
                         cache.put(event.request, responseToCache);
@@ -80,7 +112,7 @@ self.addEventListener('fetch', function(event) {
                 }).catch(function() {
                     // Se offline e não tem no cache, mostra página offline
                     if (event.request.destination === 'document') {
-                        return caches.match('/offline');
+                        return caches.match('/login');
                     }
                 });
             })
