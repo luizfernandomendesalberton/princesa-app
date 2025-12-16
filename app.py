@@ -261,19 +261,12 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 # Configuração segura para produção
 app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_urlsafe(32)
 
-# Configurações de segurança aprimoradas
+# Configurações básicas para produção
 app.config.update(
-    SESSION_COOKIE_SECURE=True if os.environ.get('FLASK_ENV') == 'production' else False,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
-    PERMANENT_SESSION_LIFETIME=timedelta(hours=2),  # Sessão expira em 2h
-    WTF_CSRF_TIME_LIMIT=None,
-    MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max upload
-    # Configurações adicionais de segurança
-    SEND_FILE_MAX_AGE_DEFAULT=timedelta(hours=1),
-    SESSION_COOKIE_NAME='princesa_session',
-    WTF_CSRF_ENABLED=True,
-    SECRET_KEY_LENGTH=64  # Força chave secreta mais longa
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=2),
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024
 )
 
 # Middleware para proxy reverso (Render)
@@ -1798,6 +1791,13 @@ def mark_notification_seen(notification_id):
                      details=f'Notification ID: {notification_id}')
     
     return jsonify({'status': 'success'})
+
+
+
+@app.route('/test')
+def test():
+    """Rota de teste simples"""
+    return "✅ Aplicação Princesa funcionando!"
 
 # Inicialização do banco de dados
 try:
