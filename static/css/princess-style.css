@@ -40,39 +40,72 @@ body {
     backdrop-filter: blur(10px);
 }
 
-/* Botão de Notificações */
+/* Botão de Notificações - Melhorado */
 #notificationToggle {
     position: relative;
     border: none !important;
     background: none;
-    padding: 8px 15px;
+    padding: 10px 15px;
     color: white;
     text-decoration: none;
-    border-radius: 8px;
+    border-radius: 10px;
     transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #notificationToggle:hover {
     background-color: rgba(255, 255, 255, 0.2) !important;
-    color: white;
-    transform: scale(1.05);
+    color: white !important;
+    transform: scale(1.1);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+}
+
+#notificationToggle:active {
+    transform: scale(0.95);
+}
+
+#notificationToggle:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
 }
 
 .notification-status {
     position: absolute;
-    top: -5px;
-    right: 5px;
-    font-size: 12px;
+    top: -2px;
+    right: 2px;
+    font-size: 14px;
     animation: pulse 2s infinite;
+    pointer-events: none;
 }
 
 .notification-status.active {
-    color: #28a745;
+    color: #00ff88;
+    text-shadow: 0 0 10px #00ff88;
+    animation: pulse-green 2s infinite;
 }
 
 .notification-status.inactive {
-    color: #6c757d;
-    opacity: 0.5;
+    color: #ff6b6b;
+    opacity: 0.7;
+    animation: none;
+}
+
+@keyframes pulse-green {
+    0% { 
+        transform: scale(1); 
+        opacity: 1;
+    }
+    50% { 
+        transform: scale(1.2); 
+        opacity: 0.8;
+    }
+    100% { 
+        transform: scale(1); 
+        opacity: 1;
+    }
 }
     border: none;
     box-shadow: var(--shadow-soft);

@@ -61,7 +61,7 @@
                     </ul>
                     
                     <div class="navbar-nav">
-                        <button class="nav-link btn btn-link text-white me-3" id="notificationToggle" onclick="toggleNotifications()" title="Ativar/Desativar Notificações">
+                        <button type="button" class="nav-link btn btn-link text-white me-3" id="notificationToggle" onclick="toggleNotifications()" title="Ativar/Desativar Notificações" style="position: relative;">
                             <i class="fas fa-bell" id="notificationIcon"></i>
                             <span class="notification-status" id="notificationStatus">🔔</span>
                         </button>
@@ -273,22 +273,46 @@
             toggle() {
                 if (this.isActive) {
                     this.stopChecking();
+                    this.isActive = false;
+                    console.log('🔕 Notificações desativadas');
                     return false;
                 } else {
-                    this.startChecking();
-                    return true;
+                    if (this.permission === 'granted') {
+                        this.startChecking();
+                        this.isActive = true;
+                        console.log('🔔 Notificações ativadas');
+                        return true;
+                    } else {
+                        console.log('⚠️ Permissão necessária para notificações');
+                        this.requestPermission();
+                        return false;
+                    }
                 }
             }
         }
         
-        // Inicializar sistema de notificações
-        window.princessNotifications = new PrincessNotifications();        
-        // Sistema de Notificações da Princesa
+        // Inicializar sistema após DOM estar pronto
+        let princessNotifications = null;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🌸 Inicializando sistema de notificações...');
+            princessNotifications = new PrincessNotifications();
+            window.princessNotifications = princessNotifications;
+            
+            // Atualizar botão inicial
+            setTimeout(() => {
+                updateNotificationButton(princessNotifications.isActive);
+            }, 1000);
+        });
+        }
+        
+        // Sistema de Notificações da Princesa - Implementação corrigida
         class PrincessNotifications {
             constructor() {
                 this.permission = 'default';
                 this.checkInterval = null;
                 this.seenNotifications = new Set();
+                this.isActive = false;
                 this.init();
             }
             
@@ -473,17 +497,44 @@
             }
         });
         
-        // Função para toggle de notificações
+        // Função para toggle de notificações - Corrigida
         function toggleNotifications() {
-            if (window.princessNotifications) {
-                const isActive = window.princessNotifications.toggle();
-                updateNotificationButton(isActive);
-                
-                if (isActive) {
-                    showToast('🔔 Notificações ativadas!', 'success');
-                } else {
-                    showToast('🔕 Notificações desativadas', 'info');
-                }
+            console.log('🔔 Botão de notificações clicado!');
+            
+            if (!window.princessNotifications) {
+                console.log('⚠️ Sistema de notificações não inicializado ainda');
+                showToast('⚠️ Aguarde, sistema carregando...', 'warning');
+                return;
+            }
+            
+            // Verificar permissão primeiro
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        window.princessNotifications.permission = 'granted';
+                        const isActive = window.princessNotifications.toggle();
+                        updateNotificationButton(isActive);
+                        showToast('🔔 Notificações ativadas! Você será avisada sobre suas rotinas e tarefas.', 'success');
+                    } else {
+                        showToast('❌ Permissão negada. Ative nas configurações do navegador.', 'error');
+                    }
+                });
+                return;
+            }
+            
+            if (Notification.permission === 'denied') {
+                showToast('🙅 Notificações bloqueadas. Ative nas configurações do navegador.', 'warning');
+                return;
+            }
+            
+            // Toggle normal
+            const isActive = window.princessNotifications.toggle();
+            updateNotificationButton(isActive);
+            
+            if (isActive) {
+                showToast('🔔 Notificações ativadas! Você será avisada sobre suas rotinas e tarefas.', 'success');
+            } else {
+                showToast('🔕 Notificações pausadas temporariamente.', 'info');
             }
         }
         
