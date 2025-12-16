@@ -26,6 +26,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/princess-style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/animations.css') }}" rel="stylesheet">
     {% block styles %}{% endblock %}
 </head>
 <body>
@@ -115,19 +116,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/princess-app.js') }}"></script>
     
-    <!-- PWA JavaScript -->
-    <script>
-        // Registrar Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/static/sw.js')
-                    .then(function(registration) {
-                        console.log('🌸 PWA: Service Worker registrado:', registration.scope);
-                    })
-                    .catch(function(error) {
-                        console.log('🌸 PWA: Erro no Service Worker:', error);
-                    });
-            });
+    <!-- PWA e JavaScript já incluídos nos arquivos separados -->
         }
 
         // Detectar se está rodando como PWA
@@ -594,8 +583,9 @@
                 to { transform: translateX(100%); opacity: 0; }
             }
         `;
-        document.head.appendChild(style);
-    </script>
+    <!-- JavaScript Files -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
     
     {% block scripts %}{% endblock %}
 </body>

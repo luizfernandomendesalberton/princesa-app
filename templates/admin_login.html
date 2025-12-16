@@ -2,74 +2,9 @@
 
 {% block title %}Área do Administrador - Princesa{% endblock %}
 
-{% block extra_css %}
+{% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
-<style>
-.admin-login-container {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.admin-card {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 20px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-    padding: 40px;
-    width: 100%;
-    max-width: 400px;
-    text-align: center;
-}
-
-.admin-icon {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 20px;
-    font-size: 2rem;
-}
-
-.admin-title {
-    color: #2c3e50;
-    font-weight: 600;
-    margin-bottom: 30px;
-}
-
-.admin-btn {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    border: none;
-    color: white;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    transition: all 0.3s ease;
-}
-
-.admin-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-    color: white;
-}
-
-.back-link {
-    margin-top: 20px;
-    color: #6c757d;
-    text-decoration: none;
-    font-size: 0.9rem;
-}
-
-.back-link:hover {
-    color: #667eea;
-    text-decoration: none;
-}
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin-login.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -110,22 +45,6 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Foco automático no campo de senha
-    document.getElementById('admin_password').focus();
-    
-    // Animação de entrada
-    const card = document.querySelector('.admin-card');
-    card.style.opacity = '0';
-    card.style.transform = 'translateY(-20px)';
-    
-    setTimeout(() => {
-        card.style.transition = 'all 0.5s ease';
-        card.style.opacity = '1';
-        card.style.transform = 'translateY(0)';
-    }, 100);
-});
-</script>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin-login.js') }}"></script>
 {% endblock %}

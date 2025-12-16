@@ -107,10 +107,6 @@ body {
         opacity: 1;
     }
 }
-    border: none;
-    box-shadow: var(--shadow-soft);
-    padding: 1rem 0;
-}
 
 .princess-brand {
     font-family: 'Dancing Script', cursive;

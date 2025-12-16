@@ -1,0 +1,95 @@
+/* Admin Dashboard styles */
+.admin-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 0;
+    margin-bottom: 30px;
+}
+
+.admin-title {
+    font-weight: 600;
+    margin: 0;
+}
+
+.admin-subtitle {
+    opacity: 0.9;
+    margin: 0;
+}
+
+.user-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.user-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.user-info h5 {
+    color: #2c3e50;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.user-meta {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.change-password-form {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.admin-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    color: white;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.admin-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+    color: white;
+}
+
+.logout-btn {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.logout-btn:hover {
+    background: linear-gradient(135deg, #c0392b, #a93226);
+    box-shadow: 0 3px 10px rgba(231, 76, 60, 0.3);
+}
+
+.no-users {
+    text-align: center;
+    color: #6c757d;
+    padding: 40px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.password-input {
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+    padding: 8px 12px;
+    transition: all 0.3s ease;
+}
+
+.password-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}

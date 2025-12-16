@@ -1,0 +1,71 @@
+/* Register page styles */
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.register-container {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 3rem;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    max-width: 450px;
+    width: 100%;
+}
+
+.princess-icon {
+    font-size: 4rem;
+    color: #ff6b9d;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 15px;
+    padding: 12px 20px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #ff6b9d;
+    box-shadow: 0 0 0 0.25rem rgba(255, 107, 157, 0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(45deg, #ff6b9d, #c44569);
+    border: none;
+    border-radius: 15px;
+    padding: 12px 30px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 107, 157, 0.3);
+}
+
+.login-link {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.login-link:hover {
+    color: #ff6b9d;
+}
+
+.register-title {
+    color: #333; 
+    font-weight: 300;
+}
