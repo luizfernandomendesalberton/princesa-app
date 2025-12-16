@@ -462,6 +462,343 @@ body {
     }
 }
 
+/* Forms e Inputs - Melhorados */
+.form-control {
+    border: 2px solid var(--princess-lavender);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 16px;
+    transition: var(--transition-smooth);
+    background-color: rgba(255, 255, 255, 0.95);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.form-control:focus {
+    border-color: var(--princess-pink);
+    box-shadow: 0 0 0 0.25rem rgba(255, 105, 180, 0.15);
+    background-color: white;
+    outline: none;
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--princess-purple);
+    margin-bottom: 8px;
+    display: block;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-select {
+    border: 2px solid var(--princess-lavender);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 16px;
+    transition: var(--transition-smooth);
+    background-color: rgba(255, 255, 255, 0.95);
+    width: 100%;
+    cursor: pointer;
+}
+
+.form-select:focus {
+    border-color: var(--princess-pink);
+    box-shadow: 0 0 0 0.25rem rgba(255, 105, 180, 0.15);
+    outline: none;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.form-check-input {
+    margin-right: 10px;
+    transform: scale(1.2);
+    accent-color: var(--princess-pink);
+}
+
+.form-check-label {
+    color: var(--princess-purple);
+    cursor: pointer;
+}
+
+/* Modals - Melhorados */
+.modal {
+    backdrop-filter: blur(5px);
+}
+
+.modal-backdrop {
+    background-color: rgba(255, 182, 193, 0.3);
+}
+
+.modal-content {
+    border: none;
+    border-radius: 20px;
+    box-shadow: var(--shadow-hover);
+    background: linear-gradient(135deg, #ffffff 0%, #fefefe 100%);
+    overflow: hidden;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, var(--princess-pink) 0%, var(--princess-purple) 100%);
+    color: white;
+    border-radius: 20px 20px 0 0;
+    border: none;
+    padding: 20px;
+}
+
+.modal-title {
+    font-family: 'Dancing Script', cursive;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.modal-body {
+    padding: 30px;
+}
+
+.modal-footer {
+    border: none;
+    padding: 20px 30px;
+    justify-content: center;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: white;
+    opacity: 0.8;
+}
+
+.btn-close:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* Layout Improvements */
+.container-fluid {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+.row {
+    margin-left: -15px;
+    margin-right: -15px;
+}
+
+.col-12,
+.col-md-6,
+.col-lg-4 {
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+/* Page Headers */
+.page-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 30px 0;
+}
+
+.page-header h1,
+.page-header h2 {
+    font-family: 'Dancing Script', cursive;
+    color: var(--princess-purple);
+    margin-bottom: 10px;
+}
+
+.welcome-header {
+    background: linear-gradient(135deg, rgba(255, 182, 193, 0.1), rgba(225, 190, 231, 0.1));
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    margin-bottom: 30px;
+    backdrop-filter: blur(10px);
+}
+
+/* Task and Routine Items */
+.task-item,
+.routine-item {
+    background: white;
+    padding: 15px 20px;
+    margin-bottom: 10px;
+    border-radius: 15px;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: var(--transition-smooth);
+}
+
+.task-item:hover,
+.routine-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+
+.task-info h6,
+.routine-info h6 {
+    margin: 0 0 5px 0;
+    color: var(--princess-purple);
+    font-weight: 600;
+}
+
+.task-description,
+.routine-description {
+    margin: 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.task-priority {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.priority-alta {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+.priority-media {
+    background: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ffcc02;
+}
+
+.priority-baixa {
+    background: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .modal-body {
+        padding: 20px;
+    }
+    
+    .welcome-header {
+        padding: 20px;
+    }
+    
+    .princess-navbar .navbar-brand {
+        font-size: 1.4rem;
+    }
+    
+    .task-item,
+    .routine-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .task-priority {
+        align-self: flex-end;
+    }
+}
+
+/* Cards e Dashboard - Melhorados */
+.princess-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.9) 100%);
+    border: none;
+    border-radius: 20px;
+    box-shadow: var(--shadow-soft);
+    overflow: hidden;
+    transition: var(--transition-smooth);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: 25px;
+}
+
+.princess-card .card-header {
+    background: linear-gradient(135deg, var(--princess-light-pink), var(--princess-lavender));
+    border: none;
+    padding: 20px;
+    color: var(--princess-purple);
+    font-weight: 600;
+}
+
+.princess-card .card-body {
+    padding: 25px;
+}
+
+.princess-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-hover);
+}
+
+.princess-dashboard {
+    padding: 20px 0;
+    min-height: calc(100vh - 120px);
+}
+
+.tasks-page,
+.routines-page {
+    padding: 20px 0;
+    min-height: calc(100vh - 120px);
+}
+
+.tasks-container,
+.routines-container {
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(10px);
+}
+
+.tasks-grid,
+.routines-grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.task-card,
+.routine-card {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: var(--shadow-soft);
+    transition: var(--transition-smooth);
+    border-left: 4px solid var(--princess-pink);
+}
+
+.task-card:hover,
+.routine-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+}
+
+.task-card.completed {
+    opacity: 0.7;
+    border-left-color: #28a745;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
 /* Print Styles */
 @media print {
     .princess-hearts,

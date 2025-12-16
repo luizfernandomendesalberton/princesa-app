@@ -1,4 +1,4 @@
-// Sistema de Notificações da Princesa - Implementação corrigida
+// Sistema de Notificações da Princesa
 class PrincessNotifications {
     constructor() {
         this.permission = 'default';
@@ -9,24 +9,18 @@ class PrincessNotifications {
     }
     
     async init() {
-        // Verificar suporte a notificações
+        console.log('🔔 Inicializando sistema de notificações...');
+        
         if (!('Notification' in window)) {
-            console.log('🌸 Notificações não suportadas neste navegador');
+            console.log('⚠️ Notificações não suportadas');
             return;
         }
         
         this.permission = Notification.permission;
         
-        // Solicitar permissão se necessário
-        if (this.permission === 'default') {
-            await this.requestPermission();
-        }
-        
         if (this.permission === 'granted') {
-            this.startChecking();
-            this.isActive = true;
-            console.log('🔔 Sistema de notificações ativado!');
-            updateNotificationButton(true);
+            this.isActive = false; // Iniciar desativado
+            console.log('🔔 Sistema pronto');
         }
     }
     
