@@ -866,6 +866,14 @@ def health_check():
 def index():
     try:
         print(f"🌸 Acessando rota principal - Session: {session.keys()}")
+        
+        # Verificar se é uma requisição com problemas de service worker
+        user_agent = request.headers.get('User-Agent', '')
+        if 'Go-http-client' not in user_agent:  # Não é requisição do Render
+            # Para navegadores, redirecionar para limpeza primeiro se houver problemas
+            if request.headers.get('Cache-Control') == 'no-cache' or request.args.get('clear') == 'true':
+                return redirect('/limpar-cache?auto=true')
+        
         if 'user_id' in session:
             print(f"🌸 User logado, redirecionando para dashboard")
             return redirect('/dashboard')
@@ -1804,36 +1812,143 @@ def test():
     """Rota de teste simples"""
     return "✅ Aplicação Princesa funcionando!"
 
+@app.route('/limpar-cache')
+def limpar_cache():
+    """Página para limpar completamente o cache e service worker"""
+    html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🧹 Limpeza de Cache - Princesa App</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #ff69b4; color: white; }
+        .container { background: rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; max-width: 500px; margin: 0 auto; }
+        button { background: #fff; color: #ff69b4; padding: 15px 30px; border: none; border-radius: 10px; font-size: 16px; margin: 10px; cursor: pointer; }
+        button:hover { background: #f0f0f0; }
+        #status { margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Limpeza de Cache</h1>
+        <p>Esta página vai limpar completamente o cache e service worker.</p>
+        <button onclick="limparTudo()">🧹 Limpar Cache Completo</button>
+        <button onclick="irParaLogin()">🏠 Ir para Login</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        async function limparTudo() {
+            const status = document.getElementById('status');
+            status.innerHTML = '🔄 Limpando...';
+            
+            try {
+                // Remove service workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                        console.log('SW removido:', registration);
+                    }
+                }
+                
+                // Remove todos os caches
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    for (let name of cacheNames) {
+                        await caches.delete(name);
+                        console.log('Cache removido:', name);
+                    }
+                }
+                
+                // Limpa localStorage e sessionStorage
+                localStorage.clear();
+                sessionStorage.clear();
+                
+                status.innerHTML = '✅ Cache limpo! Redirecionando...';
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Erro na limpeza:', error);
+                status.innerHTML = '❌ Erro na limpeza. Tente recarregar a página.';
+            }
+        }
+        
+        function irParaLogin() {
+            window.location.href = '/login';
+        }
+        
+        // Auto-executar limpeza se vier com parâmetro
+        if (window.location.search.includes('auto=true')) {
+            limparTudo();
+        }
+    </script>
+</body>
+</html>
+    """
+    response = app.make_response(html)
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Expires'] = '0'
+    response.headers['Pragma'] = 'no-cache'
+    return response
+
 @app.route('/sw.js')
 def service_worker_cleanup():
-    """Limpa o service worker existente"""
+    """Limpa o service worker existente de forma mais agressiva"""
     response = app.make_response("""
-// Service Worker de limpeza - desinstala service workers existentes
-self.addEventListener('install', function() {
+// Service Worker de limpeza - remove completamente
+console.log('🧹 Iniciando limpeza do Service Worker');
+
+self.addEventListener('install', function(event) {
+    console.log('🧹 SW: Install - pulando waiting');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', function(event) {
+    console.log('🧹 SW: Activate - removendo caches');
     event.waitUntil(
         Promise.all([
+            // Remove todos os caches
             caches.keys().then(function(cacheNames) {
                 return Promise.all(
                     cacheNames.map(function(cacheName) {
-                        console.log('Removendo cache:', cacheName);
+                        console.log('🗑️ Removendo cache:', cacheName);
                         return caches.delete(cacheName);
                     })
                 );
             }),
-            self.registration.unregister()
+            // Desregistra o service worker
+            self.registration.unregister().then(function() {
+                console.log('🧹 Service Worker desregistrado');
+            }),
+            // Recarrega todas as abas
+            self.clients.claim().then(function() {
+                return self.clients.matchAll();
+            }).then(function(clients) {
+                clients.forEach(function(client) {
+                    client.postMessage({action: 'reload'});
+                });
+            })
         ]).then(function() {
-            console.log('Service Worker removido e caches limpos');
-            return self.clients.claim();
+            console.log('✅ Limpeza completa finalizada');
         })
     );
 });
+
+// Não interceptar nenhuma requisição
+self.addEventListener('fetch', function(event) {
+    // Deixa passar todas as requisições normalmente
+    return;
+});
     """)
     response.headers['Content-Type'] = 'application/javascript'
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, proxy-revalidate, max-age=0'
+    response.headers['Expires'] = '0'
+    response.headers['Pragma'] = 'no-cache'
     return response
 
 # Inicialização do banco de dados
