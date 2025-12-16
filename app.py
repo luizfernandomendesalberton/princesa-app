@@ -865,11 +865,16 @@ def health_check():
 @app.route('/')
 def index():
     try:
+        print(f"🌸 Acessando rota principal - Session: {session.keys()}")
         if 'user_id' in session:
-            return redirect(url_for('dashboard'))
-        return redirect(url_for('login'))
+            print(f"🌸 User logado, redirecionando para dashboard")
+            return redirect('/dashboard')
+        print(f"🌸 User não logado, redirecionando para login")
+        return redirect('/login')
     except Exception as e:
-        print(f"Erro na rota index: {e}")
+        print(f"❌ Erro na rota index: {e}")
+        import traceback
+        traceback.print_exc()
         return f"Erro interno: {str(e)}", 500
 
 @app.route('/register', methods=['GET', 'POST'])
