@@ -18,6 +18,14 @@ from email.mime.base import MIMEBase
 from email import encoders
 import threading
 
+# Carregar variáveis de ambiente
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    print("✅ Variáveis de ambiente carregadas")
+except ImportError:
+    print("⚠️ python-dotenv não disponível, usando variáveis do sistema")
+
 # Variável global para tipo de banco
 USING_SQLITE = False
 
@@ -1779,6 +1787,8 @@ def check_notifications():
         'timestamp': datetime.now().isoformat()
     })
 
+
+
 @app.route('/api/mark_notification_seen/<notification_id>')
 @login_required
 def mark_notification_seen(notification_id):
@@ -1789,22 +1799,21 @@ def mark_notification_seen(notification_id):
     
     return jsonify({'status': 'success'})
 
+# Inicialização do banco de dados
+try:
+    print("🌸 Inicializando aplicação Princesa...")
+    init_db()
+    print("✅ Banco de dados inicializado com sucesso!")
+except Exception as e:
+    print(f"❌ Erro ao inicializar banco: {e}")
+    # Em produção, continua mesmo com erro de DB para debugging
+
+# Para execução local
 if __name__ == '__main__':
-    print("Iniciando aplicação Princesa...")
-    # Inicializar DB em desenvolvimento
-    if not os.environ.get('DATABASE_URL'):
-        print("Modo desenvolvimento - inicializando DB local")
-        init_db()
-    
+    print("🌸 Modo desenvolvimento - iniciando servidor local")
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') != 'production'
     
     app.run(debug=debug, host='0.0.0.0', port=port)
 else:
-    # Em produção, inicializar DB na primeira carga
-    print("Modo produção - inicializando DB")
-    try:
-        init_db()
-        print("✅ Banco inicializado com sucesso em produção!")
-    except Exception as e:
-        print(f"❌ Erro ao inicializar banco: {e}")
+    print("🌸 Aplicação carregada para produção")
