@@ -881,16 +881,258 @@ body {
     opacity: 0.5;
 }
 
+/* Layout Limpo e Compacto */
+.princess-dashboard {
+    padding: 15px;
+    height: calc(100vh - 60px);
+    overflow: hidden;
+    max-height: calc(100vh - 60px);
+}
+
+/* Garantir que não há overflow */
+html, body {
+    height: 100%;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+/* Navbar Limpa */
+.princess-navbar-clean {
+    background: linear-gradient(135deg, var(--princess-pink) 0%, var(--princess-purple) 100%);
+    backdrop-filter: blur(10px);
+    padding: 8px 0;
+    min-height: 60px;
+}
+
+.princess-brand-clean {
+    font-family: 'Dancing Script', cursive;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white !important;
+    text-decoration: none;
+}
+
+/* Ações Rápidas Compactas */
+.quick-actions-compact {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 15px;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 20px;
+}
+
+.action-buttons-compact {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.action-buttons-compact .btn {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 20px;
+    border: none;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.btn-pink {
+    background: linear-gradient(135deg, #ff69b4, #ff1493);
+    color: white;
+}
+
+.btn-purple {
+    background: linear-gradient(135deg, #9c27b0, #673ab7);
+    color: white;
+}
+
+.btn-teal {
+    background: linear-gradient(135deg, #00bcd4, #009688);
+    color: white;
+}
+
+.btn-orange {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    color: white;
+}
+
+.action-buttons-compact .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Cards Compactos */
+.princess-card-compact {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 15px;
+    height: calc((100vh - 200px) / 2);
+    max-height: 240px;
+    overflow: hidden;
+}
+
+.card-header-compact {
+    background: linear-gradient(135deg, var(--princess-light-pink), var(--princess-lavender));
+    padding: 12px 15px;
+    color: var(--princess-purple);
+    font-weight: 600;
+    border-radius: 15px 15px 0 0;
+}
+
+.card-header-compact h6 {
+    margin: 0;
+    font-size: 14px;
+}
+
+.princess-card-compact .card-body {
+    padding: 15px;
+    height: calc(100% - 45px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--princess-pink) transparent;
+}
+
+/* Task e Routine Items Compactos */
+.task-item,
+.routine-item {
+    background: white;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: var(--transition-smooth);
+    border-left: 3px solid var(--princess-pink);
+}
+
+.task-item:hover,
+.routine-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.task-info h6,
+.routine-info h6 {
+    margin: 0 0 3px 0;
+    color: var(--princess-purple);
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.task-description,
+.routine-description {
+    margin: 0;
+    color: #666;
+    font-size: 11px;
+    line-height: 1.3;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+}
+
+.empty-state i {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.empty-state h6 {
+    font-size: 14px;
+    color: #666;
+}
+
+/* Remover overflow do body */
+body {
+    overflow-x: hidden;
+}
+
+.main-content {
+    padding: 0;
+    height: calc(100vh - 60px);
+    overflow-y: auto;
+}
+
+.container-fluid.princess-dashboard {
+    height: 100%;
+    max-height: calc(100vh - 60px);
+    padding: 15px;
+}
+
+/* Responsive Compacto */
+@media (max-width: 768px) {
+    .action-buttons-compact {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .action-buttons-compact .btn {
+        min-width: auto;
+        width: 100%;
+        padding: 10px 16px;
+    }
+    
+    .princess-card-compact {
+        height: calc((100vh - 250px) / 2);
+        max-height: 200px;
+        margin-bottom: 10px;
+    }
+    
+    .princess-navbar-clean {
+        padding: 5px 0;
+        min-height: 50px;
+    }
+    
+    .princess-brand-clean {
+        font-size: 1.3rem;
+    }
+    
+    .princess-dashboard {
+        padding: 10px;
+        height: calc(100vh - 50px);
+    }
+    
+    .quick-actions-compact {
+        margin-bottom: 15px;
+        padding: 10px;
+    }
+}
+
+/* Estilos para scrollbars webkit */
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--princess-pink);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--princess-purple);
+}
+
 /* Print Styles */
 @media print {
     .princess-hearts,
     .navbar,
-    .princess-btn-primary,
-    .princess-btn-secondary {
+    .action-buttons-compact {
         display: none !important;
     }
     
-    .princess-card {
+    .princess-card-compact {
         box-shadow: none !important;
         border: 1px solid #ddd !important;
     }

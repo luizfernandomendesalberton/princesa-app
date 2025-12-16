@@ -8,24 +8,36 @@
 
 {% block content %}
 <div class="container-fluid princess-dashboard">
+    <!-- Header removido para economizar espaço -->
+    
+    <!-- Ações Rápidas -->
     <div class="row">
         <div class="col-12">
-            <div class="welcome-header">
-                <h1 class="display-4">
-                    <i class="fas fa-crown"></i> 
-                    Bem-vinda ao seu Reino, {{ user_name }}! 
-                    <i class="fas fa-heart"></i>
-                </h1>
-                <p class="lead">Aqui está um resumo do seu dia de princesa</p>
+            <div class="quick-actions-compact">
+                <div class="action-buttons-compact">
+                    <button class="btn btn-pink" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                        <i class="fas fa-plus"></i> Nova Tarefa
+                    </button>
+                    <button class="btn btn-purple" data-bs-toggle="modal" data-bs-target="#addRoutineModal">
+                        <i class="fas fa-calendar-plus"></i> Nova Rotina
+                    </button>
+                    <a href="{{ url_for('tasks') }}" class="btn btn-teal">
+                        <i class="fas fa-list"></i> Ver Tarefas
+                    </a>
+                    <a href="{{ url_for('routines') }}" class="btn btn-orange">
+                        <i class="fas fa-calendar"></i> Ver Rotinas
+                    </a>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="row mt-4">
-        <div class="col-md-6 mb-4">
-            <div class="princess-card">
-                <div class="card-header">
-                    <h5><i class="fas fa-tasks text-pink"></i> Suas Próximas Tarefas</h5>
+
+    <!-- Cards Compactos -->
+    <div class="row mt-3">
+        <div class="col-md-6 mb-3">
+            <div class="princess-card-compact">
+                <div class="card-header-compact">
+                    <h6><i class="fas fa-tasks"></i> Próximas Tarefas</h6>
                 </div>
                 <div class="card-body">
                     {% if tasks %}
@@ -63,10 +75,10 @@
             </div>
         </div>
         
-        <div class="col-md-6 mb-4">
-            <div class="princess-card">
-                <div class="card-header">
-                    <h5><i class="fas fa-calendar-alt text-purple"></i> Rotinas de Hoje</h5>
+        <div class="col-md-6 mb-3">
+            <div class="princess-card-compact">
+                <div class="card-header-compact">
+                    <h6><i class="fas fa-calendar-alt"></i> Rotinas de Hoje</h6>
                 </div>
                 <div class="card-body">
                     {% if routines %}
@@ -106,27 +118,7 @@
         </div>
     </div>
     
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="quick-actions">
-                <h5><i class="fas fa-magic"></i> Ações Rápidas</h5>
-                <div class="action-buttons">
-                    <button class="btn princess-btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
-                        <i class="fas fa-plus"></i> Nova Tarefa
-                    </button>
-                    <button class="btn princess-btn-secondary" data-bs-toggle="modal" data-bs-target="#addRoutineModal">
-                        <i class="fas fa-calendar-plus"></i> Nova Rotina
-                    </button>
-                    <a href="{{ url_for('tasks') }}" class="btn princess-btn-info">
-                        <i class="fas fa-list"></i> Ver Tarefas
-                    </a>
-                    <a href="{{ url_for('routines') }}" class="btn princess-btn-warning">
-                        <i class="fas fa-calendar"></i> Ver Rotinas
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
+
 </div>
 
 <!-- Modal para adicionar tarefa -->
