@@ -11,6 +11,12 @@ import re
 from urllib.parse import quote, unquote
 import logging
 from werkzeug.middleware.proxy_fix import ProxyFix
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+import threading
 
 # Variável global para tipo de banco
 USING_SQLITE = False
@@ -79,6 +85,92 @@ def audit_user_operation(operation_type, user_id, admin_id, details=None):
                       user_id=admin_id, 
                       details=f'Target User ID: {user_id}, Operation: {operation_type}, Details: {details or "N/A"}')
 
+# Sistema de Email
+def send_email_notification(to_email, subject, message, notification_type='info'):
+    """Envia notificação por email de forma assíncrona"""
+    def send_async_email():
+        try:
+            # Configurações SMTP (usando Gmail como exemplo)
+            smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+            smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+            smtp_username = os.environ.get('SMTP_USERNAME', 'princesa.app.notifications@gmail.com')
+            smtp_password = os.environ.get('SMTP_PASSWORD', '')
+            
+            if not smtp_password:
+                print("⚠️ Email não configurado - SMTP_PASSWORD não definida")
+                return False
+            
+            # Criar mensagem
+            msg = MIMEMultipart('alternative')
+            msg['From'] = f'Princesa App <{smtp_username}>'
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            
+            # Template HTML lindinho
+            html_template = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #ffeef8 0%, #f8e8ff 100%); }}
+                    .container {{ max-width: 600px; margin: 0 auto; background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }}
+                    .header {{ background: linear-gradient(135deg, #ff69b4, #9c27b0); padding: 30px; text-align: center; color: white; }}
+                    .header h1 {{ margin: 0; font-size: 28px; }}
+                    .content {{ padding: 30px; }}
+                    .notification {{ padding: 20px; border-radius: 10px; margin: 20px 0; }}
+                    .routine {{ background: linear-gradient(135deg, #e8f5e8, #f0fff0); border-left: 4px solid #28a745; }}
+                    .task {{ background: linear-gradient(135deg, #fff8e1, #fefefe); border-left: 4px solid #ffc107; }}
+                    .footer {{ text-align: center; padding: 20px; color: #666; font-size: 14px; }}
+                    .princess-icon {{ font-size: 24px; margin-right: 10px; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>👑 Princesa App</h1>
+                        <p>Suas Notificações Chegaram!</p>
+                    </div>
+                    <div class="content">
+                        <div class="notification {notification_type}">
+                            {message}
+                        </div>
+                        <p>Acesse o app para gerenciar suas tarefas e rotinas:</p>
+                        <p><a href="https://princesa-app.onrender.com" style="color: #ff69b4; text-decoration: none; font-weight: bold;">🌸 Abrir Princesa App</a></p>
+                    </div>
+                    <div class="footer">
+                        <p>💎 Enviado com amor pelo seu Princesa App</p>
+                        <p>Para parar de receber notificações, acesse as configurações do app.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            # Anexar HTML
+            html_part = MIMEText(html_template, 'html', 'utf-8')
+            msg.attach(html_part)
+            
+            # Enviar email
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_username, smtp_password)
+                server.send_message(msg)
+            
+            log_security_event('EMAIL_SENT', details=f'Email sent to: {to_email}, Subject: {subject}')
+            print(f"✉️ Email enviado para {to_email}: {subject}")
+            return True
+            
+        except Exception as e:
+            log_security_event('EMAIL_ERROR', details=f'Failed to send email to {to_email}: {str(e)}')
+            print(f"❌ Erro ao enviar email: {e}")
+            return False
+    
+    # Executar em thread separada para não bloquear o app
+    email_thread = threading.Thread(target=send_async_email)
+    email_thread.daemon = True
+    email_thread.start()
+    
 def validate_input(input_str, max_length=255, allow_empty=True, input_type='text'):
     """Valida e limpa entrada do usuário com sanitização avançada"""
     if input_str is None:
@@ -435,9 +527,24 @@ def init_sqlite_db(connection):
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 name TEXT NOT NULL,
+                email TEXT,
+                email_notifications BOOLEAN DEFAULT 1,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        
+        # Adicionar colunas email se não existirem (migração)
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN email TEXT")
+            print("📧 Coluna email adicionada")
+        except:
+            pass  # Coluna já existe
+            
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN email_notifications BOOLEAN DEFAULT 1")
+            print("🔔 Coluna email_notifications adicionada")
+        except:
+            pass  # Coluna já existe
         
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS tasks (
@@ -545,9 +652,24 @@ def init_db():
                 username VARCHAR(50) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
                 name VARCHAR(100) NOT NULL,
+                email VARCHAR(255),
+                email_notifications BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        
+        # Adicionar colunas email se não existirem (migração)
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN email VARCHAR(255)")
+            print("📧 Coluna email adicionada")
+        except:
+            pass  # Coluna já existe
+            
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN email_notifications BOOLEAN DEFAULT TRUE")
+            print("🔔 Coluna email_notifications adicionada")
+        except:
+            pass  # Coluna já existe
         
         # Tabela de tarefas
         cursor.execute("""
@@ -1431,6 +1553,68 @@ def service_worker():
 def offline():
     return render_template('offline.html')
 
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    """Página de configurações do perfil do usuário"""
+    if request.method == 'POST':
+        # Validar e sanitizar input
+        email = validate_input(request.form.get('email', ''), max_length=255, input_type='email')
+        email_notifications = request.form.get('email_notifications') == 'on'
+        
+        connection = get_db_connection()
+        if connection:
+            cursor = connection.cursor()
+            placeholder = get_param_placeholder()
+            
+            # Atualizar email e preferências
+            cursor.execute(f"""
+                UPDATE users 
+                SET email = {placeholder}, email_notifications = {placeholder}
+                WHERE id = {placeholder}
+            """, (email or None, email_notifications, session['user_id']))
+            
+            connection.commit()
+            cursor.close()
+            connection.close()
+            
+            log_security_event('PROFILE_UPDATE', 
+                             user_id=session['user_id'], 
+                             details=f'Email: {email}, Notifications: {email_notifications}')
+            
+            flash('💖 Perfil atualizado com sucesso!', 'success')
+            
+            # Enviar email de teste se configurado
+            if email and email_notifications:
+                send_email_notification(
+                    email, 
+                    '👑 Princesa App - Email Configurado!',
+                    '<h2>🎉 Parabéns!</h2><p>Seu email foi configurado com sucesso! Você receberá notificações sobre suas tarefas e rotinas.</p>',
+                    'routine'
+                )
+                flash('📧 Email de teste enviado!', 'info')
+    
+    # Buscar dados atuais do usuário
+    connection = get_db_connection()
+    user_data = {'email': '', 'email_notifications': True}
+    
+    if connection:
+        cursor = connection.cursor()
+        placeholder = get_param_placeholder()
+        cursor.execute(f"SELECT email, email_notifications FROM users WHERE id = {placeholder}", (session['user_id'],))
+        user_row = cursor.fetchone()
+        
+        if user_row:
+            user_data = {
+                'email': user_row[0] or '',
+                'email_notifications': bool(user_row[1]) if user_row[1] is not None else True
+            }
+        
+        cursor.close()
+        connection.close()
+    
+    return render_template('profile.html', user=user_data)
+
 @app.route('/api/check_notifications')
 @login_required
 def check_notifications():
@@ -1490,6 +1674,28 @@ def check_notifications():
                             'time': routine['time_schedule'],
                             'priority': 'normal'
                         })
+                        
+                        # Enviar email se configurado
+                        cursor.execute(f"SELECT email, email_notifications FROM users WHERE id = {placeholder}", (session['user_id'],))
+                        user_email_data = cursor.fetchone()
+                        
+                        if user_email_data and user_email_data[0] and user_email_data[1]:
+                            email_subject = f"🌸 Hora da Rotina: {routine['title']}"
+                            description_text = f'<p><strong>📝 Descrição:</strong> {routine.get("description", "")}</p>' if routine.get('description') else ''
+                            email_message = f"""
+                            <h2>🔔 É hora da sua rotina!</h2>
+                            <h3>🌸 {routine['title']}</h3>
+                            <p><strong>⏰ Horário:</strong> {routine['time_schedule']}</p>
+                            {description_text}
+                            <p>👑 Sua rotina de princesa te espera!</p>
+                            """
+                            
+                            send_email_notification(
+                                user_email_data[0],
+                                email_subject,
+                                email_message,
+                                'routine'
+                            )
                 except Exception as e:
                     print(f"Erro ao processar rotina {routine['id']}: {e}")
         
@@ -1526,6 +1732,33 @@ def check_notifications():
                         'priority': task.get('priority', 'media'),
                         'due_date': task_date.strftime('%d/%m/%Y')
                     })
+                    
+                    # Enviar email para tarefas de hoje
+                    cursor.execute(f"SELECT email, email_notifications FROM users WHERE id = {placeholder}", (session['user_id'],))
+                    user_email_data = cursor.fetchone()
+                    
+                    if user_email_data and user_email_data[0] and user_email_data[1]:
+                        priority_names = {'alta': 'Alta Prioridade', 'media': 'Média Prioridade', 'baixa': 'Baixa Prioridade'}
+                        priority_name = priority_names.get(task.get('priority', 'media'), 'Média Prioridade')
+                        
+                        email_subject = f"{priority_icon} Tarefa para Hoje: {task['title']}"
+                        description_text = f'<p><strong>📝 Descrição:</strong> {task.get("description", "")}</p>' if task.get('description') else ''
+                        email_message = f"""
+                        <h2>📅 Tarefa para Hoje!</h2>
+                        <h3>{priority_icon} {task['title']}</h3>
+                        <p><strong>🎨 Prioridade:</strong> {priority_name}</p>
+                        <p><strong>📅 Prazo:</strong> {task_date.strftime('%d/%m/%Y')}</p>
+                        {description_text}
+                        <p>💪 Você consegue, Princesa!</p>
+                        """
+                        
+                        send_email_notification(
+                            user_email_data[0],
+                            email_subject,
+                            email_message,
+                            'task'
+                        )
+                        
                 elif task_date == tomorrow:
                     notifications.append({
                         'id': f"task_{task['id']}",
