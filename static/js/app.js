@@ -45,7 +45,8 @@ window.addEventListener('beforeinstallprompt', (e) => {
     }
 });
 
-// Service Worker Registration
+// Service Worker Registration - TEMPORARIAMENTE DESABILITADO
+/*
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
@@ -57,6 +58,7 @@ if ('serviceWorker' in navigator) {
             });
     });
 }
+*/
 
 // Toast notification system
 function showToast(message, type = 'info') {

@@ -1799,6 +1799,38 @@ def test():
     """Rota de teste simples"""
     return "✅ Aplicação Princesa funcionando!"
 
+@app.route('/sw.js')
+def service_worker_cleanup():
+    """Limpa o service worker existente"""
+    response = app.make_response("""
+// Service Worker de limpeza - desinstala service workers existentes
+self.addEventListener('install', function() {
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', function(event) {
+    event.waitUntil(
+        Promise.all([
+            caches.keys().then(function(cacheNames) {
+                return Promise.all(
+                    cacheNames.map(function(cacheName) {
+                        console.log('Removendo cache:', cacheName);
+                        return caches.delete(cacheName);
+                    })
+                );
+            }),
+            self.registration.unregister()
+        ]).then(function() {
+            console.log('Service Worker removido e caches limpos');
+            return self.clients.claim();
+        })
+    );
+});
+    """)
+    response.headers['Content-Type'] = 'application/javascript'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
+
 # Inicialização do banco de dados
 try:
     print("🌸 Inicializando aplicação Princesa...")
